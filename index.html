@@ -74,6 +74,20 @@
             pointer-events: none;
         }
 
+        /* VZHLED KAMENŮ (PŘEKÁŽEK) */
+        .hex.rock {
+            background-color: #7f8c8d; /* Šedá barva */
+            cursor: not-allowed;
+        }
+        .hex.rock::after {
+            content: "🪨";
+            font-size: 30px;
+            position: absolute;
+            top: 15%;
+            left: 15%;
+            pointer-events: none;
+        }
+
         .hex.selected { background-color: #3498db; transform: scale(1.1); }
 
         .ant {
@@ -147,9 +161,10 @@
         let gameState = {
             bio: 3,
             material: 10,
-            feromons: 10, // Zvýšeno pro snazší testování rojení
+            feromons: 10, 
             nestLocation: { r: 5, c: 0 },
-            enemyNestLocation: { r: 2, c: 10 }
+            enemyNestLocation: { r: 2, c: 10 },
+            rocksAmount: 10 // Počet kamenů na mapě
         };
 
         let selectedHex = null;
@@ -190,6 +205,27 @@
             return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(c1 - c2, 2));
         }
 
+        // GENERÁTOR KAMENŮ
+        function spawnRocks() {
+            let spawned = 0;
+            let attempts = 0;
+            while (spawned < gameState.rocksAmount && attempts < 200) {
+                const r = Math.floor(Math.random() * rows);
+                const c = Math.floor(Math.random() * columns);
+                const hex = document.getElementById(`hex-${r}-${c}`);
+                
+                // Kámen nesmí být na vchodu, ani těsně vedle vchodů, aby neblokoval hru hned od začátku
+                const distToPlayer = getDistance(r, c, gameState.nestLocation.r, gameState.nestLocation.c);
+                const distToEnemy = getDistance(r, c, gameState.enemyNestLocation.r, gameState.enemyNestLocation.c);
+
+                if (hex && distToPlayer > 1.5 && distToEnemy > 1.5 && hex.innerHTML === '' && !hex.classList.contains('rock')) {
+                    hex.classList.add('rock');
+                    spawned++;
+                }
+                attempts++;
+            }
+        }
+
         function spawnResources(amount) {
             let spawned = 0;
             let attempts = 0;
@@ -197,7 +233,7 @@
                 const r = Math.floor(Math.random() * rows);
                 const c = Math.floor(Math.random() * columns);
                 const hex = document.getElementById(`hex-${r}-${c}`);
-                if (hex && !hex.classList.contains('nest') && !hex.classList.contains('enemy-nest') && hex.innerHTML === '') {
+                if (hex && !hex.classList.contains('nest') && !hex.classList.contains('enemy-nest') && !hex.classList.contains('rock') && hex.innerHTML === '') {
                     hex.innerHTML = '<div class="resource">🌱</div>';
                     spawned++;
                 }
@@ -220,7 +256,10 @@
                         if (checkR >= 0 && checkR < rows && checkC >= 0 && checkC < columns) {
                             if (isAdjacent(r, c, checkR, checkC)) {
                                 const checkHex = document.getElementById(`hex-${checkR}-${checkC}`);
-                                if (checkHex && checkHex.innerHTML === '') possibleMoves.push(checkHex);
+                                // Zkontrolovat, že políčko není kámen
+                                if (checkHex && checkHex.innerHTML === '' && !checkHex.classList.contains('rock')) {
+                                    possibleMoves.push(checkHex);
+                                }
                             }
                         }
                     }
@@ -254,7 +293,8 @@
                         if (checkR >= 0 && checkR < rows && checkC >= 0 && checkC < columns) {
                             if (isAdjacent(r, c, checkR, checkC)) {
                                 const targetHex = document.getElementById(`hex-${checkR}-${checkC}`);
-                                if (targetHex.querySelector('.enemy') === null && !targetHex.classList.contains('enemy-nest')) {
+                                // AI se vyhýbá kamenům
+                                if (targetHex.querySelector('.enemy') === null && !targetHex.classList.contains('enemy-nest') && !targetHex.classList.contains('rock')) {
                                     const dist = getDistance(checkR, checkC, targetR, targetC);
                                     if (dist < minDistance) {
                                         minDistance = dist;
@@ -294,7 +334,6 @@
             });
         }
 
-        // --- NOVÁ FUNKCE: POČÍTÁNÍ SPOJENCŮ PRO ROJENÍ ---
         function countAlliesAround(row, col) {
             let allies = 0;
             const allHexes = document.querySelectorAll('.hex');
@@ -330,6 +369,7 @@
                         const hasAnt = this.querySelector('.ant') !== null;
                         const hasResource = this.querySelector('.resource') !== null;
                         const hasEnemy = this.querySelector('.enemy') !== null;
+                        const isRock = this.classList.contains('rock');
 
                         if (selectedHex) {
                             if (this === selectedHex) {
@@ -343,13 +383,16 @@
                                 if (gameState.feromons >= 1) {
                                     const sr = parseInt(selectedHex.dataset.row);
                                     const sc = parseInt(selectedHex.dataset.col);
+                                    
                                     if (isAdjacent(sr, sc, clickedRow, clickedCol)) {
+                                        // ZABRÁNĚNÍ POHYBU PŘES KÁMEN
+                                        if (isRock) {
+                                            showMessage("Přes kámen se nedá projít!", "#e74c3c");
+                                            return; 
+                                        }
+
                                         if (hasEnemy) {
-                                            // BOJ S ROJENÍM
                                             const diceRoll = Math.floor(Math.random() * 6) + 1;
-                                            
-                                            // Spočítáme spojence (kromě toho, který právě útočí)
-                                            // Jelikož vybraný mravenec je stále na svém místě, sousedství bude fungovat
                                             const alliesBonus = countAlliesAround(clickedRow, clickedCol) - 1; 
                                             const finalResult = diceRoll + alliesBonus;
                                             
@@ -419,6 +462,7 @@
         }
 
         createBoard();
+        spawnRocks(); // Kameny se vygenerují hned po vytvoření mapy
         spawnResources(5);
         spawnEnemy();
         updateUI();
