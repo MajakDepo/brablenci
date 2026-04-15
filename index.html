@@ -46,6 +46,7 @@
 
         .hex:hover { background-color: #a1887f; transform: scale(1.05); }
 
+        /* TVÉ HNÍZDO */
         .hex.nest {
             background-color: #5d4037;
             border: 2px solid #f1c40f;
@@ -60,9 +61,24 @@
             pointer-events: none;
         }
 
+        /* NEPŘÁTELSKÉ HNÍZDO */
+        .hex.enemy-nest {
+            background-color: #c0392b; /* Červená barva */
+            border: 2px solid #000;
+        }
+        .hex.enemy-nest::after {
+            content: "CÍZÍ HNÍZDO";
+            font-size: 9px;
+            position: absolute;
+            top: 70%;
+            left: 5%;
+            color: #fff;
+            pointer-events: none;
+        }
+
         .hex.selected { background-color: #3498db; transform: scale(1.1); }
 
-        /* Vzhled mravence */
+        /* Vzhled tvého mravence */
         .ant {
             font-size: 30px;
             display: flex;
@@ -72,7 +88,18 @@
             pointer-events: none;
         }
 
-        /* Vzhled potravy (Bio) */
+        /* Vzhled NEPŘÍTELE */
+        .enemy {
+            font-size: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            pointer-events: none;
+            background-color: rgba(231, 76, 60, 0.4); /* Červené podbarvení */
+            border-radius: 50%; /* Aby podbarvení bylo kulaté */
+        }
+
         .resource {
             font-size: 24px;
             display: flex;
@@ -122,10 +149,11 @@
     <script>
         // DATA HRY
         let gameState = {
-            bio: 2, // Snížil jsem začáteční jídlo, ať tě hra donutí hned těžit
+            bio: 3,
             material: 10,
             feromons: 5,
-            nestLocation: { r: 5, c: 0 }
+            nestLocation: { r: 5, c: 0 },
+            enemyNestLocation: { r: 2, c: 10 } // Kde se nachází cizí hnízdo
         };
 
         let selectedHex = null;
@@ -134,12 +162,10 @@
         const rows = 10;
         const boardElement = document.getElementById('board');
 
-        // AKTUALIZACE UI
         function updateUI() {
             document.getElementById('bio-count').innerText = gameState.bio;
             document.getElementById('mat-count').innerText = gameState.material;
             document.getElementById('fb-count').innerText = gameState.feromons;
-            
             document.getElementById('btn-hatch').disabled = (gameState.bio < 1 || gameState.feromons < 1);
         }
 
@@ -150,13 +176,10 @@
             setTimeout(() => { msgObj.innerText = ""; }, 3000);
         }
 
-        // KONTROLA SOUSEDSTVÍ
         function isAdjacent(r1, c1, r2, c2) {
             const dr = Math.abs(r1 - r2);
             const dc = Math.abs(c1 - c2);
-            
             if (dr === 0 && dc === 1) return true; 
-
             if (dr === 1) {
                 const isShifted = (r1 % 2 !== 0);
                 if (isShifted) {
@@ -168,17 +191,15 @@
             return false;
         }
 
-        // GENERÁTOR POTRAVY
         function spawnResources(amount) {
             let spawned = 0;
-            let attempts = 0; // Pojistka proti zacyklení
+            let attempts = 0;
             while (spawned < amount && attempts < 100) {
                 const r = Math.floor(Math.random() * rows);
                 const c = Math.floor(Math.random() * columns);
                 const hex = document.getElementById(`hex-${r}-${c}`);
                 
-                // Nestavět potravu na vchod hnízda ani na políčka, kde už něco je
-                if (!hex.classList.contains('nest') && hex.innerHTML === '') {
+                if (!hex.classList.contains('nest') && !hex.classList.contains('enemy-nest') && hex.innerHTML === '') {
                     hex.innerHTML = '<div class="resource">🌱</div>';
                     spawned++;
                 }
@@ -186,7 +207,39 @@
             }
         }
 
-        // GENEROVÁNÍ MAPY
+        // GENERÁTOR NEPŘÁTEL
+        function spawnEnemy() {
+            const r = gameState.enemyNestLocation.r;
+            const c = gameState.enemyNestLocation.c;
+            const enemyNestHex = document.getElementById(`hex-${r}-${c}`);
+            
+            // Pokud na cizím hnízdě nikdo nestojí, vylíhne se nepřítel
+            if (enemyNestHex.innerHTML === '') {
+                enemyNestHex.innerHTML = '<div class="enemy">🐜</div>';
+            } else {
+                // Pokud už na hnízdě stojí, zkusíme ho hodit na náhodné prázdné políčko vedle hnízda
+                const possibleMoves = [];
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        const checkR = r + dr;
+                        const checkC = c + dc;
+                        if (checkR >= 0 && checkR < rows && checkC >= 0 && checkC < columns) {
+                            if (isAdjacent(r, c, checkR, checkC)) {
+                                const checkHex = document.getElementById(`hex-${checkR}-${checkC}`);
+                                if (checkHex && checkHex.innerHTML === '') {
+                                    possibleMoves.push(checkHex);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (possibleMoves.length > 0) {
+                    const randomHex = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                    randomHex.innerHTML = '<div class="enemy">🐜</div>';
+                }
+            }
+        }
+
         function createBoard() {
             boardElement.innerHTML = "";
             for (let r = 0; r < rows; r++) {
@@ -203,43 +256,48 @@
                     if (r === gameState.nestLocation.r && c === gameState.nestLocation.c) {
                         hexElement.classList.add('nest');
                     }
+                    if (r === gameState.enemyNestLocation.r && c === gameState.enemyNestLocation.c) {
+                        hexElement.classList.add('enemy-nest');
+                    }
 
-                    // KLIKNUTÍ NA POLÍČKO
                     hexElement.addEventListener('click', function() {
                         const clickedRow = parseInt(this.dataset.row);
                         const clickedCol = parseInt(this.dataset.col);
                         const hasAnt = this.querySelector('.ant') !== null;
                         const hasResource = this.querySelector('.resource') !== null;
+                        const hasEnemy = this.querySelector('.enemy') !== null;
 
                         if (selectedHex) {
                             if (this === selectedHex) {
-                                // Odznačení
                                 this.classList.remove('selected');
                                 selectedHex = null;
                             } else if (hasAnt) {
-                                // Výběr jiného mravence
                                 selectedHex.classList.remove('selected');
                                 this.classList.add('selected');
                                 selectedHex = this;
                             } else {
-                                // POKUS O POHYB (Na prázdno nebo na surovinu)
                                 if (gameState.feromons >= 1) {
                                     const sr = parseInt(selectedHex.dataset.row);
                                     const sc = parseInt(selectedHex.dataset.col);
                                     
                                     if (isAdjacent(sr, sc, clickedRow, clickedCol)) {
                                         
-                                        // Zpracování těžby!
+                                        // Zpracování těžby
                                         if (hasResource) {
                                             gameState.bio += 2;
                                             showMessage("Získáno +2 Bio!", "#f1c40f");
                                         }
 
-                                        // Přesun mravence (přepíše případnou surovinu)
+                                        // Zpracování boje (Sežrání nepřítele)
+                                        if (hasEnemy) {
+                                            gameState.bio += 1;
+                                            showMessage("Nepřítel zničen! Získáno +1 Bio z kořisti.", "#e74c3c");
+                                        }
+
+                                        // Přesun mravence
                                         this.innerHTML = '<div class="ant">🐜</div>';
                                         selectedHex.innerHTML = '';
                                         
-                                        // Dokončení
                                         selectedHex.classList.remove('selected');
                                         selectedHex = null;
                                         gameState.feromons -= 1;
@@ -254,7 +312,6 @@
                                 }
                             }
                         } else {
-                            // První klik - pokud je tam mravenec, vyber ho
                             if (hasAnt) {
                                 this.classList.add('selected');
                                 selectedHex = this;
@@ -268,15 +325,12 @@
             }
         }
 
-        // LÍHNUTÍ
         function hatchAnt() {
             const nestHex = document.getElementById(`hex-${gameState.nestLocation.r}-${gameState.nestLocation.c}`);
-            
             if (nestHex.querySelector('.ant') !== null) {
                 showMessage("Vchod je zablokovaný!", "#e74c3c");
                 return;
             }
-
             if (gameState.bio >= 1 && gameState.feromons >= 1) {
                 nestHex.innerHTML = '<div class="ant">🐜</div>';
                 gameState.bio -= 1;
@@ -285,14 +339,18 @@
             }
         }
 
-        // KONEC TAHU (PŘIDÁNO GNEROVÁNÍ POTRAVY)
         function nextTurn() {
             gameState.feromons += 5;
             
-            // 30% šance, že se na mapě objeví nová potrava
+            // Šance na jídlo
             if (Math.random() < 0.3) {
                 spawnResources(1);
-                showMessage("Zavál vítr a přinesl novou potravu!", "#3498db");
+            }
+            
+            // Nepřítel jedná! 50% šance, že se vylíhne nový červený mravenec
+            if (Math.random() < 0.5) {
+                spawnEnemy();
+                showMessage("Z cizího hnízda vylezl nový nepřítel!", "#c0392b");
             }
             
             updateUI();
@@ -300,7 +358,8 @@
 
         // INICIALIZACE HRY
         createBoard();
-        spawnResources(5); // Na začátku mapy rozhodíme 5 kousků jídla
+        spawnResources(5);
+        spawnEnemy(); // Na začátku nasadíme jednoho nepřítele
         updateUI();
     </script>
 
