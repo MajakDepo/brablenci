@@ -153,7 +153,6 @@
         };
 
         let selectedHex = null;
-
         const columns = 12;
         const rows = 10;
         const boardElement = document.getElementById('board');
@@ -167,9 +166,10 @@
 
         function showMessage(text, color = "#2ecc71") {
             const msgObj = document.getElementById('message');
-            msgObj.innerHTML = text; // Změněno na innerHTML, abychom mohli formátovat text pomocí <br>
+            msgObj.innerHTML = text; 
             msgObj.style.color = color;
-            setTimeout(() => { msgObj.innerHTML = ""; }, 4000); // Prodloužena doba zobrazení kvůli čtení hodu
+            // Delší časovače, ať se stíhají číst zprávy z AI
+            setTimeout(() => { msgObj.innerHTML = ""; }, 4000); 
         }
 
         function isAdjacent(r1, c1, r2, c2) {
@@ -185,6 +185,11 @@
                 }
             }
             return false;
+        }
+
+        // Pomocná funkce pro AI: Výpočet hrubé vzdálenosti k cíli
+        function getDistance(r1, c1, r2, c2) {
+            return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(c1 - c2, 2));
         }
 
         function spawnResources(amount) {
@@ -233,6 +238,82 @@
             }
         }
 
+        // UMĚLÁ INTELIGENCE NEPŘÁTEL
+        function moveEnemies() {
+            // Najdeme všechny políčka s nepřítelem a uložíme si je
+            const enemyHexes = [];
+            document.querySelectorAll('.hex').forEach(hex => {
+                if (hex.querySelector('.enemy') !== null) {
+                    enemyHexes.push(hex);
+                }
+            });
+
+            // Cíl AI je tvůj vchod
+            const targetR = gameState.nestLocation.r;
+            const targetC = gameState.nestLocation.c;
+
+            enemyHexes.forEach(enemyHex => {
+                const r = parseInt(enemyHex.dataset.row);
+                const c = parseInt(enemyHex.dataset.col);
+
+                let bestMove = null;
+                let minDistance = 9999; // Nastavíme vysokou výchozí hodnotu
+
+                // AI skenuje všech 6 políček kolem sebe
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        const checkR = r + dr;
+                        const checkC = c + dc;
+                        
+                        if (checkR >= 0 && checkR < rows && checkC >= 0 && checkC < columns) {
+                            if (isAdjacent(r, c, checkR, checkC)) {
+                                const targetHex = document.getElementById(`hex-${checkR}-${checkC}`);
+                                
+                                // AI nesmí stoupnout na jiného nepřítele ani na své vlastní hnízdo
+                                if (targetHex.querySelector('.enemy') === null && !targetHex.classList.contains('enemy-nest')) {
+                                    const dist = getDistance(checkR, checkC, targetR, targetC);
+                                    if (dist < minDistance) {
+                                        minDistance = dist;
+                                        bestMove = targetHex;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Pokud AI našlo cestu
+                if (bestMove) {
+                    const hasPlayerAnt = bestMove.querySelector('.ant') !== null;
+                    const isPlayerNest = bestMove.classList.contains('nest');
+
+                    if (hasPlayerAnt || isPlayerNest) {
+                        // AI ÚTOČÍ!
+                        const aiRoll = Math.floor(Math.random() * 6) + 1;
+                        if (aiRoll >= 4) {
+                            if (isPlayerNest) {
+                                showMessage("Kritické varování! Nepřítel pronikl do tvého hnízda! Ztrácíš 5 Bio!", "#e74c3c");
+                                gameState.bio = Math.max(0, gameState.bio - 5);
+                                enemyHex.innerHTML = ''; // Nepřítel zmizí v útrobách hnízda
+                            } else {
+                                showMessage(`⚠️ Nepřítel zaútočil! (Hod: ${aiRoll})<br>Porazil tvého mravence a zabral pozici!`, "#e74c3c");
+                                bestMove.innerHTML = '<div class="enemy">🐜</div>';
+                                enemyHex.innerHTML = '';
+                            }
+                        } else {
+                            showMessage(`🛡️ Nepřítel zaútočil! (Hod: ${aiRoll})<br>Tvůj mravenec útok hrdinsky odrazil a nepřítele zničil!`, "#2ecc71");
+                            enemyHex.innerHTML = ''; // Nepřítel padl
+                        }
+                        updateUI();
+                    } else {
+                        // AI se normálně pohne (pokud tam bylo jídlo, sešlápne ho)
+                        bestMove.innerHTML = '<div class="enemy">🐜</div>';
+                        enemyHex.innerHTML = '';
+                    }
+                }
+            });
+        }
+
         function createBoard() {
             boardElement.innerHTML = "";
             for (let r = 0; r < rows; r++) {
@@ -275,27 +356,20 @@
                                     
                                     if (isAdjacent(sr, sc, clickedRow, clickedCol)) {
                                         
-                                        // ZPRACOVÁNÍ BOJE (HOD KOSTKOU)
+                                        // ZPRACOVÁNÍ TVÉHO ÚTOKU
                                         if (hasEnemy) {
-                                            const diceRoll = Math.floor(Math.random() * 6) + 1; // Hod 1 až 6
+                                            const diceRoll = Math.floor(Math.random() * 6) + 1;
                                             
                                             if (diceRoll >= 4) {
-                                                // ÚSPĚCH
                                                 gameState.bio += 1;
                                                 showMessage(`⚔️ Útok! Hod kostkou: <strong>${diceRoll}</strong><br>Úspěšný zásah! Nepřítel byl zničen (+1 Bio).`, "#f1c40f");
-                                                
-                                                // Mravenec se přesune na místo mrtvého nepřítele
                                                 this.innerHTML = '<div class="ant">🐜</div>';
                                                 selectedHex.innerHTML = '';
                                             } else {
-                                                // NEÚSPĚCH
                                                 showMessage(`⚔️ Útok! Hod kostkou: <strong>${diceRoll}</strong><br>Minul jsi! Tvůj mravenec padl v boji.`, "#e74c3c");
-                                                
-                                                // Tvůj mravenec umírá (zmizí ze starého políčka), nepřítel zůstává nedotčen
                                                 selectedHex.innerHTML = '';
                                             }
                                         } 
-                                        // BĚŽNÝ POHYB NEBO TĚŽBA
                                         else {
                                             if (hasResource) {
                                                 gameState.bio += 2;
@@ -305,7 +379,6 @@
                                             selectedHex.innerHTML = '';
                                         }
 
-                                        // Společné akce po pohybu/boji
                                         selectedHex.classList.remove('selected');
                                         selectedHex = null;
                                         gameState.feromons -= 1;
@@ -348,6 +421,10 @@
         }
 
         function nextTurn() {
+            // NEJPRVE ZAHRAJE AI (pohnou se stávající nepřátelé)
+            moveEnemies();
+
+            // POTÉ SE DOBUDOU TVÉ BODY A OBJEVI SE NOVÉ VĚCI
             gameState.feromons += 5;
             
             if (Math.random() < 0.3) {
@@ -356,13 +433,12 @@
             
             if (Math.random() < 0.5) {
                 spawnEnemy();
-                showMessage("Z cizího hnízda vylezl nový nepřítel!", "#c0392b");
+                // Nebudeme psát zprávu o každém vylíhnutí, aby nepřepisovala zprávy z boje
             }
             
             updateUI();
         }
 
-        // INICIALIZACE HRY
         createBoard();
         spawnResources(5);
         spawnEnemy();
