@@ -54,7 +54,7 @@
 
         .hex.selected { background-color: #3498db; transform: scale(1.1); }
 
-        .ant, .worker, .elite, .enemy, .resource {
+        .ant, .worker, .elite, .enemy, .res-bio, .res-mat {
             font-size: 30px;
             display: flex;
             justify-content: center;
@@ -103,11 +103,11 @@
         </div>
 
         <h3>Podzemní stavba</h3>
-        <button id="btn-build-hatchery" onclick="buildHatchery()">Postavit Líheň 2 (10 Mat)</button>
+        <button id="btn-build-hatchery" onclick="buildHatchery()">Postavit Líheň 2 (20 Mat)</button>
 
         <h3>Líhnutí mravenců</h3>
-        <button id="btn-hatch-basic" onclick="hatchUnit('basic')">Základní voják 🐜 (1 Bio)</button>
         <button id="btn-hatch-worker" onclick="hatchUnit('worker')">Dělník 👷 (1 Bio)</button>
+        <button id="btn-hatch-basic" onclick="hatchUnit('basic')">Základní voják 🐜 (1 Bio)</button>
         <button id="btn-hatch-elite" onclick="hatchUnit('elite')" disabled>Elitní voják 🦂 (3 Bio)</button>
 
         <button id="btn-end-turn" onclick="nextTurn()" style="background-color: #3498db; margin-top: 20px;">Ukončit tah (+5 FB)</button>
@@ -117,8 +117,8 @@
 
     <script>
         let gameState = {
-            bio: 5,
-            material: 5,
+            bio: 3,         // SNÍŽENO pro lepší začátek
+            material: 0,    // SNÍŽENO na nulu
             feromons: 10,
             hatcheryLvl: 1,
             nestLocation: { r: 5, c: 0 },
@@ -136,8 +136,7 @@
             document.getElementById('mat-count').innerText = gameState.material;
             document.getElementById('fb-count').innerText = gameState.feromons;
             
-            // Logika tlačítek
-            document.getElementById('btn-build-hatchery').disabled = (gameState.material < 10 || gameState.hatcheryLvl >= 2);
+            document.getElementById('btn-build-hatchery').disabled = (gameState.material < 20 || gameState.hatcheryLvl >= 2);
             if(gameState.hatcheryLvl >= 2) document.getElementById('btn-build-hatchery').innerText = "Líheň 2 postavená ✅";
             
             document.getElementById('btn-hatch-basic').disabled = (gameState.bio < 1 || gameState.feromons < 1);
@@ -167,10 +166,10 @@
         function getDistance(r1, c1, r2, c2) { return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(c1 - c2, 2)); }
 
         function buildHatchery() {
-            if (gameState.material >= 10) {
-                gameState.material -= 10;
+            if (gameState.material >= 20) {
+                gameState.material -= 20;
                 gameState.hatcheryLvl = 2;
-                showMessage("Líheň 2 postavená! Můžeš líhnout elitní vojáky 🦂", "#f1c40f");
+                showMessage("Líheň 2 postavená! Odemčeni 🦂", "#f1c40f");
                 updateUI();
             }
         }
@@ -181,14 +180,11 @@
                 showMessage("Vchod je zablokovaný!", "#e74c3c");
                 return;
             }
-
             let cost = (type === 'elite') ? 3 : 1;
             if (gameState.bio >= cost && gameState.feromons >= 1) {
-                let icon = '🐜';
-                let className = 'ant';
+                let icon = '🐜', className = 'ant';
                 if(type === 'worker') { icon = '👷'; className = 'worker'; }
                 if(type === 'elite') { icon = '🦂'; className = 'elite'; }
-
                 nestHex.innerHTML = `<div class="${className}">${icon}</div>`;
                 gameState.bio -= cost;
                 gameState.feromons -= 1;
@@ -196,36 +192,34 @@
             }
         }
 
-        // --- POMOCNÉ FUNKCE PRO HRU ---
         function spawnRocks() {
             let spawned = 0;
             while (spawned < gameState.rocksAmount) {
-                const r = Math.floor(Math.random() * rows);
-                const c = Math.floor(Math.random() * columns);
+                const r = Math.floor(Math.random() * rows), c = Math.floor(Math.random() * columns);
                 const hex = document.getElementById(`hex-${r}-${c}`);
                 if (hex && getDistance(r, c, gameState.nestLocation.r, gameState.nestLocation.c) > 1.5 && getDistance(r, c, gameState.enemyNestLocation.r, gameState.enemyNestLocation.c) > 1.5 && hex.innerHTML === '' && !hex.classList.contains('rock')) {
-                    hex.classList.add('rock');
-                    spawned++;
+                    hex.classList.add('rock'); spawned++;
                 }
             }
         }
 
+        // UPRAVENÉ GENEROVÁNÍ ZDROJŮ (Bio i Materiál)
         function spawnResources(amount) {
             let spawned = 0;
             while (spawned < amount) {
-                const r = Math.floor(Math.random() * rows);
-                const c = Math.floor(Math.random() * columns);
+                const r = Math.floor(Math.random() * rows), c = Math.floor(Math.random() * columns);
                 const hex = document.getElementById(`hex-${r}-${c}`);
-                if (hex && !hex.classList.contains('nest') && !hex.classList.contains('enemy-nest') && !hex.classList.contains('rock') && hex.innerHTML === '') {
-                    hex.innerHTML = '<div class="resource">🌱</div>';
+                if (hex && hex.innerHTML === '' && !hex.classList.contains('rock') && !hex.classList.contains('nest') && !hex.classList.contains('enemy-nest')) {
+                    // 70% šance na Bio, 30% na Materiál
+                    if (Math.random() > 0.3) hex.innerHTML = '<div class="res-bio">🌱</div>';
+                    else hex.innerHTML = '<div class="res-mat">🪹</div>';
                     spawned++;
                 }
             }
         }
 
         function spawnEnemy() {
-            const r = gameState.enemyNestLocation.r;
-            const c = gameState.enemyNestLocation.c;
+            const r = gameState.enemyNestLocation.r, c = gameState.enemyNestLocation.c;
             const nest = document.getElementById(`hex-${r}-${c}`);
             if (nest.innerHTML === '') nest.innerHTML = '<div class="enemy">🐜</div>';
             else {
@@ -234,9 +228,7 @@
                         const nr = r+dr, nc = c+dc;
                         if(nr>=0 && nr<rows && nc>=0 && nc<columns && isAdjacent(r,c,nr,nc)) {
                             const h = document.getElementById(`hex-${nr}-${nc}`);
-                            if(h && h.innerHTML === '' && !h.classList.contains('rock')) {
-                                h.innerHTML = '<div class="enemy">🐜</div>'; return;
-                            }
+                            if(h && h.innerHTML === '' && !h.classList.contains('rock')) { h.innerHTML = '<div class="enemy">🐜</div>'; return; }
                         }
                     }
                 }
@@ -246,9 +238,7 @@
         function countAlliesAround(row, col) {
             let allies = 0;
             document.querySelectorAll('.hex').forEach(hex => {
-                if (hex.querySelector('.ant') || hex.querySelector('.worker') || hex.querySelector('.elite')) {
-                    if (isAdjacent(row, col, parseInt(hex.dataset.row), parseInt(hex.dataset.col))) allies++;
-                }
+                if (hex.querySelector('.ant, .worker, .elite') && isAdjacent(row, col, parseInt(hex.dataset.row), parseInt(hex.dataset.col))) allies++;
             });
             return allies;
         }
@@ -269,38 +259,36 @@
                         const r = parseInt(this.dataset.row), c = parseInt(this.dataset.col);
                         const myUnit = this.querySelector('.ant, .worker, .elite');
                         const enemy = this.querySelector('.enemy');
-                        const resource = this.querySelector('.resource');
+                        const resBio = this.querySelector('.res-bio');
+                        const resMat = this.querySelector('.res-mat');
 
                         if (selectedHex) {
+                            const sr = parseInt(selectedHex.dataset.row), sc = parseInt(selectedHex.dataset.col);
                             if (this === selectedHex) { this.classList.remove('selected'); selectedHex = null; }
                             else if (myUnit) { selectedHex.classList.remove('selected'); this.classList.add('selected'); selectedHex = this; }
-                            else if (isAdjacent(parseInt(selectedHex.dataset.row), parseInt(selectedHex.dataset.col), r, c) && !this.classList.contains('rock')) {
+                            else if (isAdjacent(sr, sc, r, c) && !this.classList.contains('rock')) {
                                 if (gameState.feromons < 1) { showMessage("Nemáš FB!", "#e74c3c"); return; }
-                                
                                 const type = selectedHex.children[0].className;
                                 
                                 if (enemy) {
-                                    if(type === 'worker') { showMessage("Dělník neumí bojovat a byl sežrán!", "#e74c3c"); selectedHex.innerHTML = ''; }
+                                    if(type === 'worker') { showMessage("Dělník byl sežrán!", "#e74c3c"); selectedHex.innerHTML = ''; }
                                     else {
-                                        let roll = Math.floor(Math.random() * 6) + 1;
-                                        let bonus = countAlliesAround(r, c) - 1;
-                                        if (type === 'elite') bonus += 1; // Elitní bonus
-                                        let total = roll + bonus;
-                                        
-                                        if (total >= 4) {
-                                            gameState.bio += 1; gameState.material += 1; // Kořist z nepřítele
-                                            showMessage(`Boj: Hod ${roll} + bonus ${bonus} = ${total}. Vítězství! (+1 Bio, +1 Mat)`, "#f1c40f");
+                                        let roll = Math.floor(Math.random() * 6) + 1, bonus = countAlliesAround(r, c) - 1;
+                                        if (type === 'elite') bonus += 1;
+                                        if (roll + bonus >= 4) {
+                                            gameState.bio += 1; gameState.material += 2; // Více materiálu z boje
+                                            showMessage(`Vítězství! (+1 Bio, +2 Mat)`, "#f1c40f");
                                             this.innerHTML = selectedHex.innerHTML; selectedHex.innerHTML = '';
-                                        } else {
-                                            showMessage(`Boj: Hod ${roll} + bonus ${bonus} = ${total}. Prohra!`, "#e74c3c");
-                                            selectedHex.innerHTML = '';
-                                        }
+                                        } else { showMessage(`Prohra!`, "#e74c3c"); selectedHex.innerHTML = ''; }
                                     }
                                 } else {
-                                    if (resource) {
+                                    if (resBio) {
                                         let gain = (type === 'worker') ? 3 : 2;
-                                        gameState.bio += gain;
-                                        showMessage(`Získáno +${gain} Bio!`, "#2ecc71");
+                                        gameState.bio += gain; showMessage(`Bio +${gain}`, "#2ecc71");
+                                    }
+                                    if (resMat) {
+                                        let gain = (type === 'worker') ? 4 : 2; // Dělník těží materiál lépe
+                                        gameState.material += gain; showMessage(`Materiál +${gain}`, "#3498db");
                                     }
                                     this.innerHTML = selectedHex.innerHTML; selectedHex.innerHTML = '';
                                 }
@@ -324,10 +312,10 @@
                         for(let dc=-1; dc<=1; dc++) {
                             const nr=r+dr, nc=c+dc;
                             if(nr>=0 && nr<rows && nc>=0 && nc<columns && isAdjacent(r,c,nr,nc)) {
-                                const target = document.getElementById(`hex-${nr}-${nc}`);
-                                if(target && !target.querySelector('.enemy') && !target.classList.contains('enemy-nest') && !target.classList.contains('rock')) {
+                                const t = document.getElementById(`hex-${nr}-${nc}`);
+                                if(t && !t.querySelector('.enemy') && !t.classList.contains('enemy-nest') && !t.classList.contains('rock')) {
                                     let d = getDistance(nr, nc, gameState.nestLocation.r, gameState.nestLocation.c);
-                                    if(d < minDist) { minDist = d; best = target; }
+                                    if(d < minDist) { minDist = d; best = t; }
                                 }
                             }
                         }
@@ -335,9 +323,9 @@
                     if (best) {
                         if (best.querySelector('.ant, .worker, .elite') || best.classList.contains('nest')) {
                             if (Math.random() > 0.5) {
-                                if(best.classList.contains('nest')) { gameState.bio = Math.max(0, gameState.bio - 3); showMessage("Nájezd! Ztráta 3 Bio!", "#e74c3c"); hex.innerHTML = ''; }
-                                else { best.innerHTML = '<div class="enemy">🐜</div>'; hex.innerHTML = ''; showMessage("Nepřítel zabil tvého mravence!", "#e74c3c"); }
-                            } else { hex.innerHTML = ''; showMessage("Tvůj mravenec odrazil útok!", "#2ecc71"); }
+                                if(best.classList.contains('nest')) { gameState.bio = Math.max(0, gameState.bio - 3); hex.innerHTML = ''; }
+                                else { best.innerHTML = '<div class="enemy">🐜</div>'; hex.innerHTML = ''; }
+                            } else { hex.innerHTML = ''; }
                         } else { best.innerHTML = '<div class="enemy">🐜</div>'; hex.innerHTML = ''; }
                     }
                 }
@@ -352,8 +340,7 @@
             updateUI();
         }
 
-        createBoard(); spawnRocks(); spawnResources(5); spawnEnemy(); updateUI();
+        createBoard(); spawnRocks(); spawnResources(6); spawnEnemy(); updateUI();
     </script>
-
 </body>
 </html>
