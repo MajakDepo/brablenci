@@ -60,11 +60,21 @@
             pointer-events: none;
         }
 
-        /* Modrá barva pro vybraného mravence */
         .hex.selected { background-color: #3498db; transform: scale(1.1); }
 
+        /* Vzhled mravence */
         .ant {
             font-size: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        /* Vzhled potravy (Bio) */
+        .resource {
+            font-size: 24px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -106,51 +116,49 @@
         <h3>Akce</h3>
         <button id="btn-hatch" onclick="hatchAnt()">Vylíhnout Vojáka (1 Bio)</button>
         <button id="btn-end-turn" onclick="nextTurn()" style="background-color: #3498db;">Ukončit tah (+5 FB)</button>
-        <p id="message" style="color: #e74c3c; font-weight: bold; min-height: 20px;"></p>
+        <p id="message" style="color: #2ecc71; font-weight: bold; min-height: 20px;"></p>
     </div>
 
     <script>
         // DATA HRY
         let gameState = {
-            bio: 10,
+            bio: 2, // Snížil jsem začáteční jídlo, ať tě hra donutí hned těžit
             material: 10,
             feromons: 5,
             nestLocation: { r: 5, c: 0 }
         };
 
-        let selectedHex = null; // Pamatuje si, na jaké políčko jsi klikl
+        let selectedHex = null;
 
         const columns = 12;
         const rows = 10;
         const boardElement = document.getElementById('board');
 
-        // AKTUALIZACE PANELU A HLÁŠEK
+        // AKTUALIZACE UI
         function updateUI() {
             document.getElementById('bio-count').innerText = gameState.bio;
             document.getElementById('mat-count').innerText = gameState.material;
             document.getElementById('fb-count').innerText = gameState.feromons;
             
-            // Tlačítko se vypne, pokud není dost FB nebo Bio
             document.getElementById('btn-hatch').disabled = (gameState.bio < 1 || gameState.feromons < 1);
         }
 
-        function showMessage(text) {
+        function showMessage(text, color = "#2ecc71") {
             const msgObj = document.getElementById('message');
             msgObj.innerText = text;
-            setTimeout(() => { msgObj.innerText = ""; }, 2500); // Hláška po 2.5 vteřinách zmizí
+            msgObj.style.color = color;
+            setTimeout(() => { msgObj.innerText = ""; }, 3000);
         }
 
-        // KONTROLA SOUSEDSTVÍ (Matematika hexové sítě)
+        // KONTROLA SOUSEDSTVÍ
         function isAdjacent(r1, c1, r2, c2) {
             const dr = Math.abs(r1 - r2);
             const dc = Math.abs(c1 - c2);
             
-            // Pohyb doleva a doprava ve stejném řádku
             if (dr === 0 && dc === 1) return true; 
 
-            // Pohyb nahoru nebo dolů závisí na tom, zda je řádek odsazený (sudé/liché pravidlo CSS)
             if (dr === 1) {
-                const isShifted = (r1 % 2 !== 0); // V našem CSS jsou liché indexy (1,3,5) posunuté doprava
+                const isShifted = (r1 % 2 !== 0);
                 if (isShifted) {
                     if (c2 === c1 || c2 === c1 + 1) return true;
                 } else {
@@ -160,7 +168,25 @@
             return false;
         }
 
-        // GENEROVÁNÍ MAPY A LOGIKA KLIKÁNÍ
+        // GENERÁTOR POTRAVY
+        function spawnResources(amount) {
+            let spawned = 0;
+            let attempts = 0; // Pojistka proti zacyklení
+            while (spawned < amount && attempts < 100) {
+                const r = Math.floor(Math.random() * rows);
+                const c = Math.floor(Math.random() * columns);
+                const hex = document.getElementById(`hex-${r}-${c}`);
+                
+                // Nestavět potravu na vchod hnízda ani na políčka, kde už něco je
+                if (!hex.classList.contains('nest') && hex.innerHTML === '') {
+                    hex.innerHTML = '<div class="resource">🌱</div>';
+                    spawned++;
+                }
+                attempts++;
+            }
+        }
+
+        // GENEROVÁNÍ MAPY
         function createBoard() {
             boardElement.innerHTML = "";
             for (let r = 0; r < rows; r++) {
@@ -178,52 +204,58 @@
                         hexElement.classList.add('nest');
                     }
 
-                    // CO SE STANE PO KLIKNUTÍ
+                    // KLIKNUTÍ NA POLÍČKO
                     hexElement.addEventListener('click', function() {
                         const clickedRow = parseInt(this.dataset.row);
                         const clickedCol = parseInt(this.dataset.col);
                         const hasAnt = this.querySelector('.ant') !== null;
+                        const hasResource = this.querySelector('.resource') !== null;
 
-                        // 1. MÁME UŽ NĚCO VYBRÁNO?
                         if (selectedHex) {
                             if (this === selectedHex) {
-                                // Klikli jsme na stejné políčko -> Zrušit výběr
+                                // Odznačení
                                 this.classList.remove('selected');
                                 selectedHex = null;
                             } else if (hasAnt) {
-                                // Klikli jsme na jiného mravence -> Vybrat jeho
+                                // Výběr jiného mravence
                                 selectedHex.classList.remove('selected');
                                 this.classList.add('selected');
                                 selectedHex = this;
                             } else {
-                                // Klikli jsme na prázdné políčko -> Zkusit pohyb
+                                // POKUS O POHYB (Na prázdno nebo na surovinu)
                                 if (gameState.feromons >= 1) {
                                     const sr = parseInt(selectedHex.dataset.row);
                                     const sc = parseInt(selectedHex.dataset.col);
                                     
                                     if (isAdjacent(sr, sc, clickedRow, clickedCol)) {
-                                        // Přesun mravence
+                                        
+                                        // Zpracování těžby!
+                                        if (hasResource) {
+                                            gameState.bio += 2;
+                                            showMessage("Získáno +2 Bio!", "#f1c40f");
+                                        }
+
+                                        // Přesun mravence (přepíše případnou surovinu)
                                         this.innerHTML = '<div class="ant">🐜</div>';
                                         selectedHex.innerHTML = '';
                                         
-                                        // Dokončení přesunu
+                                        // Dokončení
                                         selectedHex.classList.remove('selected');
                                         selectedHex = null;
                                         gameState.feromons -= 1;
                                         updateUI();
                                     } else {
-                                        showMessage("Mravenec tam nedojde (moc daleko)!");
+                                        showMessage("Tam nedosáhneš!", "#e74c3c");
                                     }
                                 } else {
-                                    showMessage("Nemáš Feromonové body na pohyb!");
+                                    showMessage("Nemáš Feromonové body!", "#e74c3c");
                                     selectedHex.classList.remove('selected');
                                     selectedHex = null;
                                 }
                             }
                         } else {
-                            // 2. ZATÍM NEMÁME NIC VYBRÁNO
+                            // První klik - pokud je tam mravenec, vyber ho
                             if (hasAnt) {
-                                // Vybereme mravence
                                 this.classList.add('selected');
                                 selectedHex = this;
                             }
@@ -236,13 +268,12 @@
             }
         }
 
-        // LOGIKA LÍHNUTÍ
+        // LÍHNUTÍ
         function hatchAnt() {
             const nestHex = document.getElementById(`hex-${gameState.nestLocation.r}-${gameState.nestLocation.c}`);
             
-            // Kontrola, zda na vchodu už někdo nestojí
             if (nestHex.querySelector('.ant') !== null) {
-                showMessage("Vchod do hnízda je zablokovaný!");
+                showMessage("Vchod je zablokovaný!", "#e74c3c");
                 return;
             }
 
@@ -254,13 +285,22 @@
             }
         }
 
-        // KONEC TAHU
+        // KONEC TAHU (PŘIDÁNO GNEROVÁNÍ POTRAVY)
         function nextTurn() {
             gameState.feromons += 5;
+            
+            // 30% šance, že se na mapě objeví nová potrava
+            if (Math.random() < 0.3) {
+                spawnResources(1);
+                showMessage("Zavál vítr a přinesl novou potravu!", "#3498db");
+            }
+            
             updateUI();
         }
 
+        // INICIALIZACE HRY
         createBoard();
+        spawnResources(5); // Na začátku mapy rozhodíme 5 kousků jídla
         updateUI();
     </script>
 
