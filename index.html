@@ -46,7 +46,6 @@
 
         .hex:hover { background-color: #a1887f; transform: scale(1.05); }
 
-        /* TVÉ HNÍZDO */
         .hex.nest {
             background-color: #5d4037;
             border: 2px solid #f1c40f;
@@ -61,9 +60,8 @@
             pointer-events: none;
         }
 
-        /* NEPŘÁTELSKÉ HNÍZDO */
         .hex.enemy-nest {
-            background-color: #c0392b; /* Červená barva */
+            background-color: #c0392b;
             border: 2px solid #000;
         }
         .hex.enemy-nest::after {
@@ -78,7 +76,6 @@
 
         .hex.selected { background-color: #3498db; transform: scale(1.1); }
 
-        /* Vzhled tvého mravence */
         .ant {
             font-size: 30px;
             display: flex;
@@ -88,7 +85,6 @@
             pointer-events: none;
         }
 
-        /* Vzhled NEPŘÍTELE */
         .enemy {
             font-size: 30px;
             display: flex;
@@ -96,8 +92,8 @@
             align-items: center;
             height: 100%;
             pointer-events: none;
-            background-color: rgba(231, 76, 60, 0.4); /* Červené podbarvení */
-            border-radius: 50%; /* Aby podbarvení bylo kulaté */
+            background-color: rgba(231, 76, 60, 0.4);
+            border-radius: 50%;
         }
 
         .resource {
@@ -143,7 +139,7 @@
         <h3>Akce</h3>
         <button id="btn-hatch" onclick="hatchAnt()">Vylíhnout Vojáka (1 Bio)</button>
         <button id="btn-end-turn" onclick="nextTurn()" style="background-color: #3498db;">Ukončit tah (+5 FB)</button>
-        <p id="message" style="color: #2ecc71; font-weight: bold; min-height: 20px;"></p>
+        <p id="message" style="color: #2ecc71; font-weight: bold; min-height: 40px; margin-top: 15px; line-height: 1.4;"></p>
     </div>
 
     <script>
@@ -153,7 +149,7 @@
             material: 10,
             feromons: 5,
             nestLocation: { r: 5, c: 0 },
-            enemyNestLocation: { r: 2, c: 10 } // Kde se nachází cizí hnízdo
+            enemyNestLocation: { r: 2, c: 10 }
         };
 
         let selectedHex = null;
@@ -171,9 +167,9 @@
 
         function showMessage(text, color = "#2ecc71") {
             const msgObj = document.getElementById('message');
-            msgObj.innerText = text;
+            msgObj.innerHTML = text; // Změněno na innerHTML, abychom mohli formátovat text pomocí <br>
             msgObj.style.color = color;
-            setTimeout(() => { msgObj.innerText = ""; }, 3000);
+            setTimeout(() => { msgObj.innerHTML = ""; }, 4000); // Prodloužena doba zobrazení kvůli čtení hodu
         }
 
         function isAdjacent(r1, c1, r2, c2) {
@@ -207,17 +203,14 @@
             }
         }
 
-        // GENERÁTOR NEPŘÁTEL
         function spawnEnemy() {
             const r = gameState.enemyNestLocation.r;
             const c = gameState.enemyNestLocation.c;
             const enemyNestHex = document.getElementById(`hex-${r}-${c}`);
             
-            // Pokud na cizím hnízdě nikdo nestojí, vylíhne se nepřítel
             if (enemyNestHex.innerHTML === '') {
                 enemyNestHex.innerHTML = '<div class="enemy">🐜</div>';
             } else {
-                // Pokud už na hnízdě stojí, zkusíme ho hodit na náhodné prázdné políčko vedle hnízda
                 const possibleMoves = [];
                 for (let dr = -1; dr <= 1; dr++) {
                     for (let dc = -1; dc <= 1; dc++) {
@@ -282,22 +275,37 @@
                                     
                                     if (isAdjacent(sr, sc, clickedRow, clickedCol)) {
                                         
-                                        // Zpracování těžby
-                                        if (hasResource) {
-                                            gameState.bio += 2;
-                                            showMessage("Získáno +2 Bio!", "#f1c40f");
-                                        }
-
-                                        // Zpracování boje (Sežrání nepřítele)
+                                        // ZPRACOVÁNÍ BOJE (HOD KOSTKOU)
                                         if (hasEnemy) {
-                                            gameState.bio += 1;
-                                            showMessage("Nepřítel zničen! Získáno +1 Bio z kořisti.", "#e74c3c");
+                                            const diceRoll = Math.floor(Math.random() * 6) + 1; // Hod 1 až 6
+                                            
+                                            if (diceRoll >= 4) {
+                                                // ÚSPĚCH
+                                                gameState.bio += 1;
+                                                showMessage(`⚔️ Útok! Hod kostkou: <strong>${diceRoll}</strong><br>Úspěšný zásah! Nepřítel byl zničen (+1 Bio).`, "#f1c40f");
+                                                
+                                                // Mravenec se přesune na místo mrtvého nepřítele
+                                                this.innerHTML = '<div class="ant">🐜</div>';
+                                                selectedHex.innerHTML = '';
+                                            } else {
+                                                // NEÚSPĚCH
+                                                showMessage(`⚔️ Útok! Hod kostkou: <strong>${diceRoll}</strong><br>Minul jsi! Tvůj mravenec padl v boji.`, "#e74c3c");
+                                                
+                                                // Tvůj mravenec umírá (zmizí ze starého políčka), nepřítel zůstává nedotčen
+                                                selectedHex.innerHTML = '';
+                                            }
+                                        } 
+                                        // BĚŽNÝ POHYB NEBO TĚŽBA
+                                        else {
+                                            if (hasResource) {
+                                                gameState.bio += 2;
+                                                showMessage("Získáno +2 Bio!", "#2ecc71");
+                                            }
+                                            this.innerHTML = '<div class="ant">🐜</div>';
+                                            selectedHex.innerHTML = '';
                                         }
 
-                                        // Přesun mravence
-                                        this.innerHTML = '<div class="ant">🐜</div>';
-                                        selectedHex.innerHTML = '';
-                                        
+                                        // Společné akce po pohybu/boji
                                         selectedHex.classList.remove('selected');
                                         selectedHex = null;
                                         gameState.feromons -= 1;
@@ -342,12 +350,10 @@
         function nextTurn() {
             gameState.feromons += 5;
             
-            // Šance na jídlo
             if (Math.random() < 0.3) {
                 spawnResources(1);
             }
             
-            // Nepřítel jedná! 50% šance, že se vylíhne nový červený mravenec
             if (Math.random() < 0.5) {
                 spawnEnemy();
                 showMessage("Z cizího hnízda vylezl nový nepřítel!", "#c0392b");
@@ -359,7 +365,7 @@
         // INICIALIZACE HRY
         createBoard();
         spawnResources(5);
-        spawnEnemy(); // Na začátku nasadíme jednoho nepřítele
+        spawnEnemy();
         updateUI();
     </script>
 
