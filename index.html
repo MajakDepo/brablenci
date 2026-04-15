@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Válka Mravenců - Prototyp</title>
+    <style>
+        /* ZÁKLADNÍ VZHLED STRÁNKY */
+        body {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            font-family: Arial, sans-serif;
+            display: flex;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* HERNÍ PLÁN (MAPA) */
+        #game-area {
+            flex: 2;
+        }
+
+        /* PANEL PODZEMÍ A INFORMACÍ */
+        #ui-panel {
+            flex: 1;
+            background-color: #34495e;
+            padding: 20px;
+            border-radius: 10px;
+            margin-left: 20px;
+        }
+
+        /* --- STYLOVÁNÍ HEXAGONŮ --- */
+        #board {
+            margin-top: 20px;
+        }
+
+        .hex-row {
+            display: flex;
+            margin-bottom: -15px; /* Hexy do sebe zapadnou */
+        }
+
+        /* Posunutí každého sudého řádku, aby vznikla síť */
+        .hex-row:nth-child(even) {
+            margin-left: 32px; 
+        }
+
+        .hex {
+            width: 60px;
+            height: 70px;
+            background-color: #8d6e63; /* Barva hlíny */
+            margin-right: 4px;
+            /* Tento magický kód ořízne čtverec do tvaru šestiúhelníku */
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+        }
+
+        .hex:hover {
+            background-color: #a1887f; /* Zesvětlení po přejetí myší */
+            transform: scale(1.1); /* Mírné zvětšení */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-area">
+        <h1>Válka Mravenců</h1>
+        <div id="board"></div>
+    </div>
+
+    <div id="ui-panel">
+        <h2>Frakce: Blacks</h2>
+        <p><strong>Feromonové body:</strong> <span id="fb-count">5</span></p>
+        <hr>
+        <h3>Podzemní Sklad</h3>
+        <p>Bio (Jídlo): <span>10</span></p>
+        <p>Materiál: <span>10</span></p>
+        <hr>
+        <h3>Akce</h3>
+        <button disabled>Postavit Líheň</button>
+        <button disabled>Vylíhnout Vojáka</button>
+    </div>
+
+    <script>
+        // Nastavení velikosti mapy
+        const columns = 12;
+        const rows = 10;
+        const boardElement = document.getElementById('board');
+
+        // Funkce pro vygenerování herního plánu
+        function createBoard() {
+            for (let r = 0; r < rows; r++) {
+                // Vytvoříme řádek
+                const rowElement = document.createElement('div');
+                rowElement.className = 'hex-row';
+
+                for (let c = 0; c < columns; c++) {
+                    // Vytvoříme samotný šestiúhelník
+                    const hexElement = document.createElement('div');
+                    hexElement.className = 'hex';
+                    
+                    // Uložíme si do hexu jeho souřadnice, abychom věděli, kam hráč klikl
+                    hexElement.dataset.row = r;
+                    hexElement.dataset.col = c;
+
+                    // Přidáme akci po kliknutí
+                    hexElement.addEventListener('click', function() {
+                        console.log("Klikl jsi na hex na pozici: Řádek " + r + ", Sloupec " + c);
+                    });
+
+                    // Připojíme hex do řádku
+                    rowElement.appendChild(hexElement);
+                }
+                // Připojíme řádek na herní desku
+                boardElement.appendChild(rowElement);
+            }
+        }
+
+        // Spustíme generování mapy hned po načtení stránky
+        createBoard();
+    </script>
+
+</body>
+</html>
