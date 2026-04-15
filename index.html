@@ -22,6 +22,7 @@
             padding: 20px;
             border-radius: 10px;
             margin-left: 20px;
+            max-width: 350px;
         }
 
         #board { margin-top: 20px; }
@@ -46,51 +47,14 @@
 
         .hex:hover { background-color: #a1887f; transform: scale(1.05); }
 
-        .hex.nest {
-            background-color: #5d4037;
-            border: 2px solid #f1c40f;
-        }
-        .hex.nest::after {
-            content: "VCHOD";
-            font-size: 10px;
-            position: absolute;
-            top: 70%;
-            left: 20%;
-            color: #f1c40f;
-            pointer-events: none;
-        }
-
-        .hex.enemy-nest {
-            background-color: #c0392b;
-            border: 2px solid #000;
-        }
-        .hex.enemy-nest::after {
-            content: "CÍZÍ HNÍZDO";
-            font-size: 9px;
-            position: absolute;
-            top: 70%;
-            left: 5%;
-            color: #fff;
-            pointer-events: none;
-        }
-
-        /* VZHLED KAMENŮ (PŘEKÁŽEK) */
-        .hex.rock {
-            background-color: #7f8c8d; /* Šedá barva */
-            cursor: not-allowed;
-        }
-        .hex.rock::after {
-            content: "🪨";
-            font-size: 30px;
-            position: absolute;
-            top: 15%;
-            left: 15%;
-            pointer-events: none;
-        }
+        .hex.nest { background-color: #5d4037; border: 2px solid #f1c40f; }
+        .hex.enemy-nest { background-color: #c0392b; border: 2px solid #000; }
+        .hex.rock { background-color: #7f8c8d; cursor: not-allowed; }
+        .hex.rock::after { content: "🪨"; font-size: 30px; position: absolute; top: 15%; left: 15%; pointer-events: none; }
 
         .hex.selected { background-color: #3498db; transform: scale(1.1); }
 
-        .ant {
+        .ant, .worker, .elite, .enemy, .resource {
             font-size: 30px;
             display: flex;
             justify-content: center;
@@ -99,40 +63,27 @@
             pointer-events: none;
         }
 
-        .enemy {
-            font-size: 30px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100%;
-            pointer-events: none;
-            background-color: rgba(231, 76, 60, 0.4);
-            border-radius: 50%;
-        }
+        .enemy { background-color: rgba(231, 76, 60, 0.4); border-radius: 50%; }
 
-        .resource {
-            font-size: 24px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100%;
-            pointer-events: none;
-        }
-
+        h3 { border-bottom: 1px solid #7f8c8d; padding-bottom: 5px; margin-top: 20px; }
+        
         button {
             background-color: #e67e22;
             color: white;
             border: none;
-            padding: 10px 20px;
-            margin: 5px 0;
+            padding: 10px;
+            margin: 3px 0;
             border-radius: 5px;
             cursor: pointer;
             width: 100%;
             font-weight: bold;
+            font-size: 13px;
         }
 
-        button:disabled { background-color: #7f8c8d; cursor: not-allowed; }
+        button:disabled { background-color: #7f8c8d; cursor: not-allowed; opacity: 0.6; }
         button:hover:not(:disabled) { background-color: #d35400; }
+
+        .stats-box { background: #2c3e50; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -144,27 +95,35 @@
 
     <div id="ui-panel">
         <h2 id="faction-name">Frakce: Blacks</h2>
-        <p><strong>Feromonové body:</strong> <span id="fb-count">0</span></p>
-        <hr>
-        <h3>Podzemní Sklad</h3>
-        <p>Bio (Jídlo): <span id="bio-count">0</span></p>
-        <p>Materiál: <span id="mat-count">0</span></p>
-        <hr>
-        <h3>Akce</h3>
-        <button id="btn-hatch" onclick="hatchAnt()">Vylíhnout Vojáka (1 Bio)</button>
-        <button id="btn-end-turn" onclick="nextTurn()" style="background-color: #3498db;">Ukončit tah (+5 FB)</button>
-        <p id="message" style="color: #2ecc71; font-weight: bold; min-height: 40px; margin-top: 15px; line-height: 1.4;"></p>
+        
+        <div class="stats-box">
+            <strong>Feromonové body:</strong> <span id="fb-count">0</span><br>
+            <strong>Bio (Jídlo):</strong> <span id="bio-count">0</span><br>
+            <strong>Materiál:</strong> <span id="mat-count">0</span>
+        </div>
+
+        <h3>Podzemní stavba</h3>
+        <button id="btn-build-hatchery" onclick="buildHatchery()">Postavit Líheň 2 (10 Mat)</button>
+
+        <h3>Líhnutí mravenců</h3>
+        <button id="btn-hatch-basic" onclick="hatchUnit('basic')">Základní voják 🐜 (1 Bio)</button>
+        <button id="btn-hatch-worker" onclick="hatchUnit('worker')">Dělník 👷 (1 Bio)</button>
+        <button id="btn-hatch-elite" onclick="hatchUnit('elite')" disabled>Elitní voják 🦂 (3 Bio)</button>
+
+        <button id="btn-end-turn" onclick="nextTurn()" style="background-color: #3498db; margin-top: 20px;">Ukončit tah (+5 FB)</button>
+        
+        <p id="message" style="color: #2ecc71; font-weight: bold; min-height: 50px; margin-top: 15px; font-size: 14px;"></p>
     </div>
 
     <script>
-        // DATA HRY
         let gameState = {
-            bio: 3,
-            material: 10,
-            feromons: 10, 
+            bio: 5,
+            material: 5,
+            feromons: 10,
+            hatcheryLvl: 1,
             nestLocation: { r: 5, c: 0 },
             enemyNestLocation: { r: 2, c: 10 },
-            rocksAmount: 10 // Počet kamenů na mapě
+            rocksAmount: 12
         };
 
         let selectedHex = null;
@@ -176,14 +135,21 @@
             document.getElementById('bio-count').innerText = gameState.bio;
             document.getElementById('mat-count').innerText = gameState.material;
             document.getElementById('fb-count').innerText = gameState.feromons;
-            document.getElementById('btn-hatch').disabled = (gameState.bio < 1 || gameState.feromons < 1);
+            
+            // Logika tlačítek
+            document.getElementById('btn-build-hatchery').disabled = (gameState.material < 10 || gameState.hatcheryLvl >= 2);
+            if(gameState.hatcheryLvl >= 2) document.getElementById('btn-build-hatchery').innerText = "Líheň 2 postavená ✅";
+            
+            document.getElementById('btn-hatch-basic').disabled = (gameState.bio < 1 || gameState.feromons < 1);
+            document.getElementById('btn-hatch-worker').disabled = (gameState.bio < 1 || gameState.feromons < 1);
+            document.getElementById('btn-hatch-elite').disabled = (gameState.bio < 3 || gameState.feromons < 1 || gameState.hatcheryLvl < 2);
         }
 
         function showMessage(text, color = "#2ecc71") {
             const msgObj = document.getElementById('message');
-            msgObj.innerHTML = text; 
+            msgObj.innerHTML = text;
             msgObj.style.color = color;
-            setTimeout(() => { msgObj.innerHTML = ""; }, 4000); 
+            setTimeout(() => { msgObj.innerHTML = ""; }, 4000);
         }
 
         function isAdjacent(r1, c1, r2, c2) {
@@ -192,44 +158,61 @@
             if (dr === 0 && dc === 1) return true; 
             if (dr === 1) {
                 const isShifted = (r1 % 2 !== 0);
-                if (isShifted) {
-                    if (c2 === c1 || c2 === c1 + 1) return true;
-                } else {
-                    if (c2 === c1 || c2 === c1 - 1) return true;
-                }
+                if (isShifted) { if (c2 === c1 || c2 === c1 + 1) return true; }
+                else { if (c2 === c1 || c2 === c1 - 1) return true; }
             }
             return false;
         }
 
-        function getDistance(r1, c1, r2, c2) {
-            return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(c1 - c2, 2));
+        function getDistance(r1, c1, r2, c2) { return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(c1 - c2, 2)); }
+
+        function buildHatchery() {
+            if (gameState.material >= 10) {
+                gameState.material -= 10;
+                gameState.hatcheryLvl = 2;
+                showMessage("Líheň 2 postavená! Můžeš líhnout elitní vojáky 🦂", "#f1c40f");
+                updateUI();
+            }
         }
 
-        // GENERÁTOR KAMENŮ
+        function hatchUnit(type) {
+            const nestHex = document.getElementById(`hex-${gameState.nestLocation.r}-${gameState.nestLocation.c}`);
+            if (nestHex.innerHTML !== '') {
+                showMessage("Vchod je zablokovaný!", "#e74c3c");
+                return;
+            }
+
+            let cost = (type === 'elite') ? 3 : 1;
+            if (gameState.bio >= cost && gameState.feromons >= 1) {
+                let icon = '🐜';
+                let className = 'ant';
+                if(type === 'worker') { icon = '👷'; className = 'worker'; }
+                if(type === 'elite') { icon = '🦂'; className = 'elite'; }
+
+                nestHex.innerHTML = `<div class="${className}">${icon}</div>`;
+                gameState.bio -= cost;
+                gameState.feromons -= 1;
+                updateUI();
+            }
+        }
+
+        // --- POMOCNÉ FUNKCE PRO HRU ---
         function spawnRocks() {
             let spawned = 0;
-            let attempts = 0;
-            while (spawned < gameState.rocksAmount && attempts < 200) {
+            while (spawned < gameState.rocksAmount) {
                 const r = Math.floor(Math.random() * rows);
                 const c = Math.floor(Math.random() * columns);
                 const hex = document.getElementById(`hex-${r}-${c}`);
-                
-                // Kámen nesmí být na vchodu, ani těsně vedle vchodů, aby neblokoval hru hned od začátku
-                const distToPlayer = getDistance(r, c, gameState.nestLocation.r, gameState.nestLocation.c);
-                const distToEnemy = getDistance(r, c, gameState.enemyNestLocation.r, gameState.enemyNestLocation.c);
-
-                if (hex && distToPlayer > 1.5 && distToEnemy > 1.5 && hex.innerHTML === '' && !hex.classList.contains('rock')) {
+                if (hex && getDistance(r, c, gameState.nestLocation.r, gameState.nestLocation.c) > 1.5 && getDistance(r, c, gameState.enemyNestLocation.r, gameState.enemyNestLocation.c) > 1.5 && hex.innerHTML === '' && !hex.classList.contains('rock')) {
                     hex.classList.add('rock');
                     spawned++;
                 }
-                attempts++;
             }
         }
 
         function spawnResources(amount) {
             let spawned = 0;
-            let attempts = 0;
-            while (spawned < amount && attempts < 100) {
+            while (spawned < amount) {
                 const r = Math.floor(Math.random() * rows);
                 const c = Math.floor(Math.random() * columns);
                 const hex = document.getElementById(`hex-${r}-${c}`);
@@ -237,113 +220,34 @@
                     hex.innerHTML = '<div class="resource">🌱</div>';
                     spawned++;
                 }
-                attempts++;
             }
         }
 
         function spawnEnemy() {
             const r = gameState.enemyNestLocation.r;
             const c = gameState.enemyNestLocation.c;
-            const enemyNestHex = document.getElementById(`hex-${r}-${c}`);
-            if (enemyNestHex.innerHTML === '') {
-                enemyNestHex.innerHTML = '<div class="enemy">🐜</div>';
-            } else {
-                const possibleMoves = [];
-                for (let dr = -1; dr <= 1; dr++) {
-                    for (let dc = -1; dc <= 1; dc++) {
-                        const checkR = r + dr;
-                        const checkC = c + dc;
-                        if (checkR >= 0 && checkR < rows && checkC >= 0 && checkC < columns) {
-                            if (isAdjacent(r, c, checkR, checkC)) {
-                                const checkHex = document.getElementById(`hex-${checkR}-${checkC}`);
-                                // Zkontrolovat, že políčko není kámen
-                                if (checkHex && checkHex.innerHTML === '' && !checkHex.classList.contains('rock')) {
-                                    possibleMoves.push(checkHex);
-                                }
+            const nest = document.getElementById(`hex-${r}-${c}`);
+            if (nest.innerHTML === '') nest.innerHTML = '<div class="enemy">🐜</div>';
+            else {
+                for(let dr=-1; dr<=1; dr++) {
+                    for(let dc=-1; dc<=1; dc++) {
+                        const nr = r+dr, nc = c+dc;
+                        if(nr>=0 && nr<rows && nc>=0 && nc<columns && isAdjacent(r,c,nr,nc)) {
+                            const h = document.getElementById(`hex-${nr}-${nc}`);
+                            if(h && h.innerHTML === '' && !h.classList.contains('rock')) {
+                                h.innerHTML = '<div class="enemy">🐜</div>'; return;
                             }
                         }
                     }
-                }
-                if (possibleMoves.length > 0) {
-                    const randomHex = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
-                    randomHex.innerHTML = '<div class="enemy">🐜</div>';
                 }
             }
         }
 
-        function moveEnemies() {
-            const enemyHexes = [];
-            document.querySelectorAll('.hex').forEach(hex => {
-                if (hex.querySelector('.enemy') !== null) enemyHexes.push(hex);
-            });
-
-            const targetR = gameState.nestLocation.r;
-            const targetC = gameState.nestLocation.c;
-
-            enemyHexes.forEach(enemyHex => {
-                const r = parseInt(enemyHex.dataset.row);
-                const c = parseInt(enemyHex.dataset.col);
-                let bestMove = null;
-                let minDistance = 9999;
-
-                for (let dr = -1; dr <= 1; dr++) {
-                    for (let dc = -1; dc <= 1; dc++) {
-                        const checkR = r + dr;
-                        const checkC = c + dc;
-                        if (checkR >= 0 && checkR < rows && checkC >= 0 && checkC < columns) {
-                            if (isAdjacent(r, c, checkR, checkC)) {
-                                const targetHex = document.getElementById(`hex-${checkR}-${checkC}`);
-                                // AI se vyhýbá kamenům
-                                if (targetHex.querySelector('.enemy') === null && !targetHex.classList.contains('enemy-nest') && !targetHex.classList.contains('rock')) {
-                                    const dist = getDistance(checkR, checkC, targetR, targetC);
-                                    if (dist < minDistance) {
-                                        minDistance = dist;
-                                        bestMove = targetHex;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (bestMove) {
-                    const hasPlayerAnt = bestMove.querySelector('.ant') !== null;
-                    const isPlayerNest = bestMove.classList.contains('nest');
-                    if (hasPlayerAnt || isPlayerNest) {
-                        const aiRoll = Math.floor(Math.random() * 6) + 1;
-                        if (aiRoll >= 4) {
-                            if (isPlayerNest) {
-                                showMessage("Kritické varování! Nepřítel pronikl do tvého hnízda! Ztrácíš 5 Bio!", "#e74c3c");
-                                gameState.bio = Math.max(0, gameState.bio - 5);
-                                enemyHex.innerHTML = '';
-                            } else {
-                                showMessage(`⚠️ Nepřítel zaútočil! (Hod: ${aiRoll})<br>Porazil tvého mravence a zabral pozici!`, "#e74c3c");
-                                bestMove.innerHTML = '<div class="enemy">🐜</div>';
-                                enemyHex.innerHTML = '';
-                            }
-                        } else {
-                            showMessage(`🛡️ Nepřítel zaútočil! (Hod: ${aiRoll})<br>Tvůj mravenec útok hrdinsky odrazil a nepřítele zničil!`, "#2ecc71");
-                            enemyHex.innerHTML = '';
-                        }
-                        updateUI();
-                    } else {
-                        bestMove.innerHTML = '<div class="enemy">🐜</div>';
-                        enemyHex.innerHTML = '';
-                    }
-                }
-            });
-        }
-
         function countAlliesAround(row, col) {
             let allies = 0;
-            const allHexes = document.querySelectorAll('.hex');
-            allHexes.forEach(hex => {
-                if (hex.querySelector('.ant') !== null) {
-                    const r = parseInt(hex.dataset.row);
-                    const c = parseInt(hex.dataset.col);
-                    if (isAdjacent(row, col, r, c)) {
-                        allies++;
-                    }
+            document.querySelectorAll('.hex').forEach(hex => {
+                if (hex.querySelector('.ant') || hex.querySelector('.worker') || hex.querySelector('.elite')) {
+                    if (isAdjacent(row, col, parseInt(hex.dataset.row), parseInt(hex.dataset.col))) allies++;
                 }
             });
             return allies;
@@ -355,117 +259,100 @@
                 const rowElement = document.createElement('div');
                 rowElement.className = 'hex-row';
                 for (let c = 0; c < columns; c++) {
-                    const hexElement = document.createElement('div');
-                    hexElement.className = 'hex';
-                    hexElement.id = `hex-${r}-${c}`;
-                    hexElement.dataset.row = r;
-                    hexElement.dataset.col = c;
-                    if (r === gameState.nestLocation.r && c === gameState.nestLocation.c) hexElement.classList.add('nest');
-                    if (r === gameState.enemyNestLocation.r && c === gameState.enemyNestLocation.c) hexElement.classList.add('enemy-nest');
+                    const hex = document.createElement('div');
+                    hex.className = 'hex'; hex.id = `hex-${r}-${c}`;
+                    hex.dataset.row = r; hex.dataset.col = c;
+                    if (r === gameState.nestLocation.r && c === gameState.nestLocation.c) hex.classList.add('nest');
+                    if (r === gameState.enemyNestLocation.r && c === gameState.enemyNestLocation.c) hex.classList.add('enemy-nest');
 
-                    hexElement.addEventListener('click', function() {
-                        const clickedRow = parseInt(this.dataset.row);
-                        const clickedCol = parseInt(this.dataset.col);
-                        const hasAnt = this.querySelector('.ant') !== null;
-                        const hasResource = this.querySelector('.resource') !== null;
-                        const hasEnemy = this.querySelector('.enemy') !== null;
-                        const isRock = this.classList.contains('rock');
+                    hex.addEventListener('click', function() {
+                        const r = parseInt(this.dataset.row), c = parseInt(this.dataset.col);
+                        const myUnit = this.querySelector('.ant, .worker, .elite');
+                        const enemy = this.querySelector('.enemy');
+                        const resource = this.querySelector('.resource');
 
                         if (selectedHex) {
-                            if (this === selectedHex) {
-                                this.classList.remove('selected');
-                                selectedHex = null;
-                            } else if (hasAnt) {
-                                selectedHex.classList.remove('selected');
-                                this.classList.add('selected');
-                                selectedHex = this;
-                            } else {
-                                if (gameState.feromons >= 1) {
-                                    const sr = parseInt(selectedHex.dataset.row);
-                                    const sc = parseInt(selectedHex.dataset.col);
-                                    
-                                    if (isAdjacent(sr, sc, clickedRow, clickedCol)) {
-                                        // ZABRÁNĚNÍ POHYBU PŘES KÁMEN
-                                        if (isRock) {
-                                            showMessage("Přes kámen se nedá projít!", "#e74c3c");
-                                            return; 
-                                        }
-
-                                        if (hasEnemy) {
-                                            const diceRoll = Math.floor(Math.random() * 6) + 1;
-                                            const alliesBonus = countAlliesAround(clickedRow, clickedCol) - 1; 
-                                            const finalResult = diceRoll + alliesBonus;
-                                            
-                                            if (finalResult >= 4) {
-                                                gameState.bio += 1;
-                                                let bonusText = alliesBonus > 0 ? ` (+${alliesBonus} za rojení)` : "";
-                                                showMessage(`⚔️ Útok! Hod: <strong>${diceRoll}</strong>${bonusText}<br>Výsledek <strong>${finalResult}</strong>: Úspěch! (+1 Bio)`, "#f1c40f");
-                                                this.innerHTML = '<div class="ant">🐜</div>';
-                                                selectedHex.innerHTML = '';
-                                            } else {
-                                                let bonusText = alliesBonus > 0 ? ` (+${alliesBonus} za rojení)` : "";
-                                                showMessage(`⚔️ Útok! Hod: <strong>${diceRoll}</strong>${bonusText}<br>Výsledek <strong>${finalResult}</strong>: Prohra! Mravenec padl.`, "#e74c3c");
-                                                selectedHex.innerHTML = '';
-                                            }
+                            if (this === selectedHex) { this.classList.remove('selected'); selectedHex = null; }
+                            else if (myUnit) { selectedHex.classList.remove('selected'); this.classList.add('selected'); selectedHex = this; }
+                            else if (isAdjacent(parseInt(selectedHex.dataset.row), parseInt(selectedHex.dataset.col), r, c) && !this.classList.contains('rock')) {
+                                if (gameState.feromons < 1) { showMessage("Nemáš FB!", "#e74c3c"); return; }
+                                
+                                const type = selectedHex.children[0].className;
+                                
+                                if (enemy) {
+                                    if(type === 'worker') { showMessage("Dělník neumí bojovat a byl sežrán!", "#e74c3c"); selectedHex.innerHTML = ''; }
+                                    else {
+                                        let roll = Math.floor(Math.random() * 6) + 1;
+                                        let bonus = countAlliesAround(r, c) - 1;
+                                        if (type === 'elite') bonus += 1; // Elitní bonus
+                                        let total = roll + bonus;
+                                        
+                                        if (total >= 4) {
+                                            gameState.bio += 1; gameState.material += 1; // Kořist z nepřítele
+                                            showMessage(`Boj: Hod ${roll} + bonus ${bonus} = ${total}. Vítězství! (+1 Bio, +1 Mat)`, "#f1c40f");
+                                            this.innerHTML = selectedHex.innerHTML; selectedHex.innerHTML = '';
                                         } else {
-                                            if (hasResource) {
-                                                gameState.bio += 2;
-                                                showMessage("Získáno +2 Bio!", "#2ecc71");
-                                            }
-                                            this.innerHTML = '<div class="ant">🐜</div>';
+                                            showMessage(`Boj: Hod ${roll} + bonus ${bonus} = ${total}. Prohra!`, "#e74c3c");
                                             selectedHex.innerHTML = '';
                                         }
-                                        selectedHex.classList.remove('selected');
-                                        selectedHex = null;
-                                        gameState.feromons -= 1;
-                                        updateUI();
-                                    } else {
-                                        showMessage("Tam nedosáhneš!", "#e74c3c");
                                     }
                                 } else {
-                                    showMessage("Nemáš Feromonové body!", "#e74c3c");
-                                    selectedHex.classList.remove('selected');
-                                    selectedHex = null;
+                                    if (resource) {
+                                        let gain = (type === 'worker') ? 3 : 2;
+                                        gameState.bio += gain;
+                                        showMessage(`Získáno +${gain} Bio!`, "#2ecc71");
+                                    }
+                                    this.innerHTML = selectedHex.innerHTML; selectedHex.innerHTML = '';
                                 }
+                                selectedHex.classList.remove('selected'); selectedHex = null;
+                                gameState.feromons -= 1; updateUI();
                             }
-                        } else if (hasAnt) {
-                            this.classList.add('selected');
-                            selectedHex = this;
-                        }
+                        } else if (myUnit) { this.classList.add('selected'); selectedHex = this; }
                     });
-                    rowElement.appendChild(hexElement);
+                    rowElement.appendChild(hex);
                 }
                 boardElement.appendChild(rowElement);
             }
         }
 
-        function hatchAnt() {
-            const nestHex = document.getElementById(`hex-${gameState.nestLocation.r}-${gameState.nestLocation.c}`);
-            if (nestHex && nestHex.querySelector('.ant') !== null) {
-                showMessage("Vchod je zablokovaný!", "#e74c3c");
-                return;
-            }
-            if (gameState.bio >= 1 && gameState.feromons >= 1) {
-                nestHex.innerHTML = '<div class="ant">🐜</div>';
-                gameState.bio -= 1;
-                gameState.feromons -= 1;
-                updateUI();
-            }
+        function moveEnemies() {
+            document.querySelectorAll('.hex').forEach(hex => {
+                if (hex.querySelector('.enemy')) {
+                    const r = parseInt(hex.dataset.row), c = parseInt(hex.dataset.col);
+                    let best = null, minDist = 999;
+                    for(let dr=-1; dr<=1; dr++) {
+                        for(let dc=-1; dc<=1; dc++) {
+                            const nr=r+dr, nc=c+dc;
+                            if(nr>=0 && nr<rows && nc>=0 && nc<columns && isAdjacent(r,c,nr,nc)) {
+                                const target = document.getElementById(`hex-${nr}-${nc}`);
+                                if(target && !target.querySelector('.enemy') && !target.classList.contains('enemy-nest') && !target.classList.contains('rock')) {
+                                    let d = getDistance(nr, nc, gameState.nestLocation.r, gameState.nestLocation.c);
+                                    if(d < minDist) { minDist = d; best = target; }
+                                }
+                            }
+                        }
+                    }
+                    if (best) {
+                        if (best.querySelector('.ant, .worker, .elite') || best.classList.contains('nest')) {
+                            if (Math.random() > 0.5) {
+                                if(best.classList.contains('nest')) { gameState.bio = Math.max(0, gameState.bio - 3); showMessage("Nájezd! Ztráta 3 Bio!", "#e74c3c"); hex.innerHTML = ''; }
+                                else { best.innerHTML = '<div class="enemy">🐜</div>'; hex.innerHTML = ''; showMessage("Nepřítel zabil tvého mravence!", "#e74c3c"); }
+                            } else { hex.innerHTML = ''; showMessage("Tvůj mravenec odrazil útok!", "#2ecc71"); }
+                        } else { best.innerHTML = '<div class="enemy">🐜</div>'; hex.innerHTML = ''; }
+                    }
+                }
+            });
         }
 
         function nextTurn() {
             moveEnemies();
             gameState.feromons += 5;
-            if (Math.random() < 0.3) spawnResources(1);
-            if (Math.random() < 0.5) spawnEnemy();
+            if (Math.random() < 0.4) spawnResources(1);
+            if (Math.random() < 0.6) spawnEnemy();
             updateUI();
         }
 
-        createBoard();
-        spawnRocks(); // Kameny se vygenerují hned po vytvoření mapy
-        spawnResources(5);
-        spawnEnemy();
-        updateUI();
+        createBoard(); spawnRocks(); spawnResources(5); spawnEnemy(); updateUI();
     </script>
 
 </body>
