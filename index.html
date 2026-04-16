@@ -30,13 +30,16 @@
         .faction-cards {
             display: flex;
             gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 1000px;
         }
 
         .card {
             background-color: #34495e;
-            padding: 30px;
+            padding: 25px;
             border-radius: 10px;
-            width: 300px;
+            width: 280px;
             cursor: pointer;
             border: 3px solid transparent;
             transition: transform 0.2s, border-color 0.2s;
@@ -45,14 +48,16 @@
         .card:hover { transform: translateY(-10px); }
         .card.blacks:hover { border-color: #3498db; }
         .card.termiti:hover { border-color: #e67e22; }
+        .card.formica:hover { border-color: #2ecc71; }
 
         .card h2 { margin-top: 0; }
         .card.blacks h2 { color: #3498db; }
         .card.termiti h2 { color: #e67e22; }
+        .card.formica h2 { color: #2ecc71; }
 
         /* --- HERNÍ PLOCHA --- */
         #game-container {
-            display: none; /* Skryto, dokud hráč nevybere frakci */
+            display: none; 
             padding: 20px;
             height: calc(100% - 40px);
         }
@@ -142,14 +147,21 @@
                 <h2>Blacks (Roj)</h2>
                 <p><strong>Síla v počtu.</strong></p>
                 <p>Tví mravenci získávají bonus +1 k hodu kostkou v boji za každého dalšího tvého mravence u cíle.</p>
-                <p><em>(Ideální pro agresivní obklíčení)</em></p>
+                <p><em>(Agresivní obklíčení)</em></p>
             </div>
             
             <div class="card termiti" onclick="startGame('termiti')">
                 <h2>Termiti (Drtiči)</h2>
                 <p><strong>Mistři terénu.</strong></p>
                 <p>Tví dělníci mohou vytěžit kamenné překážky na mapě (hod 4+) za masivní bonus +5 Materiálu.</p>
-                <p><em>(Ideální pro ekonomiku a tvorbu vlastních cest)</em></p>
+                <p><em>(Ekonomika a stavba cest)</em></p>
+            </div>
+
+            <div class="card formica" onclick="startGame('formica')">
+                <h2>Formica (Plivači)</h2>
+                <p><strong>Boj na dálku.</strong></p>
+                <p>Tví Elitní vojáci střílí kyselinu až na vzdálenost 2 hexů. Při neúspěšném hodu v boji nezemřou.</p>
+                <p><em>(Bezpečné a přesné útoky)</em></p>
             </div>
         </div>
     </div>
@@ -163,8 +175,7 @@
         <div id="ui-panel">
             <h2 id="faction-name">Frakce: ...</h2>
             
-            <div class="stats-box faction-box" id="faction-ability">
-                </div>
+            <div class="stats-box faction-box" id="faction-ability"></div>
 
             <div class="stats-box">
                 <strong>Naše hnízdo (HP):</strong> <span id="player-hp" class="hp-bar player">10</span>/10<br>
@@ -191,7 +202,7 @@
 
     <script>
         let gameState = {
-            chosenFaction: null, // Pamatuje si, za koho hraješ
+            chosenFaction: null, 
             playerHP: 10,
             enemyHP: 10,
             bio: 3,
@@ -208,32 +219,25 @@
         const rows = 10;
         const boardElement = document.getElementById('board');
 
-        // --- INICIALIZACE HRY Z MENU ---
         function startGame(faction) {
             gameState.chosenFaction = faction;
-            
-            // Skryjeme menu a zobrazíme hru
             document.getElementById('start-screen').style.display = 'none';
             document.getElementById('game-container').style.display = 'flex';
             
-            // Nastavení textů podle frakce
             if (faction === 'blacks') {
                 document.getElementById('faction-name').innerText = "Frakce: Blacks";
-                document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Rojení.</strong><br>Při boji získáš bonus +1 k hodu kostkou za každého dalšího tvého mravence u cíle.";
+                document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Rojení.</strong><br>Při boji získáš bonus +1 k hodu za každého dalšího tvého mravence u cíle.";
             } else if (faction === 'termiti') {
                 document.getElementById('faction-name').innerText = "Frakce: Termiti";
                 document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Drtiči terénu.</strong><br>Dělník může za 1 FB vytěžit Kámen (Hod 4+). Otevře tak cestu a získá +5 Materiálu.";
+            } else if (faction === 'formica') {
+                document.getElementById('faction-name').innerText = "Frakce: Formica";
+                document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Střelba kyseliny.</strong><br>Elitní voják může útočit až na vzdálenost 2 polí (přes mravence, ne kameny). Při neúspěchu nezemře.";
             }
 
-            // Vygenerování světa
-            createBoard();
-            spawnRocks();
-            spawnResources(6);
-            spawnEnemy();
-            updateUI();
+            createBoard(); spawnRocks(); spawnResources(6); spawnEnemy(); updateUI();
         }
 
-        // --- ZBYLÁ LOGIKA HRY ---
         function updateUI() {
             document.getElementById('bio-count').innerText = gameState.bio;
             document.getElementById('mat-count').innerText = gameState.material;
@@ -251,11 +255,11 @@
 
         function showMessage(text, color = "#2ecc71", duration = 4500) {
             const msgObj = document.getElementById('message');
-            msgObj.innerHTML = text;
-            msgObj.style.color = color;
+            msgObj.innerHTML = text; msgObj.style.color = color;
             setTimeout(() => { msgObj.innerHTML = ""; }, duration);
         }
 
+        // --- MATEMATIKA HEXAGONŮ PRO DOSAH ---
         function isAdjacent(r1, c1, r2, c2) {
             const dr = Math.abs(r1 - r2);
             const dc = Math.abs(c1 - c2);
@@ -268,7 +272,35 @@
             return false;
         }
 
+        // Převod na krychlové souřadnice pro přesný výpočet vzdálenosti na hexech (pro Formicu na 2 hexy)
+        function offsetToCube(row, col) {
+            var x = col - (row - (row & 1)) / 2;
+            var z = row;
+            var y = -x - z;
+            return {x: x, y: y, z: z};
+        }
+
+        function getHexDistance(r1, c1, r2, c2) {
+            var a = offsetToCube(r1, c1);
+            var b = offsetToCube(r2, c2);
+            return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y), Math.abs(a.z - b.z));
+        }
+
         function getDistance(r1, c1, r2, c2) { return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(c1 - c2, 2)); }
+
+        // Kontrola, zda střele nebrání kámen
+        function hasLineOfSight(r1, c1, r2, c2) {
+            let clearPath = false;
+            for(let r=0; r<rows; r++) {
+                for(let c=0; c<columns; c++) {
+                    if (isAdjacent(r1, c1, r, c) && isAdjacent(r, c, r2, c2)) {
+                        let hex = document.getElementById(`hex-${r}-${c}`);
+                        if (hex && !hex.classList.contains('rock')) clearPath = true;
+                    }
+                }
+            }
+            return clearPath;
+        }
 
         function checkWinCondition() {
             if (gameState.enemyHP <= 0) {
@@ -280,10 +312,8 @@
 
         function buildHatchery() {
             if (gameState.material >= 20) {
-                gameState.material -= 20;
-                gameState.hatcheryLvl = 2;
-                showMessage("Líheň 2 postavená! Odemčeni 🦂", "#f1c40f");
-                updateUI();
+                gameState.material -= 20; gameState.hatcheryLvl = 2;
+                showMessage("Líheň 2 postavená! Odemčeni 🦂", "#f1c40f"); updateUI();
             }
         }
 
@@ -307,10 +337,7 @@
                 const hex = document.getElementById(`hex-${r}-${c}`);
                 if (hex && getDistance(r, c, gameState.nestLocation.r, gameState.nestLocation.c) > 1.5 && getDistance(r, c, gameState.enemyNestLocation.r, gameState.enemyNestLocation.c) > 1.5 && hex.innerHTML === '' && !hex.classList.contains('rock')) {
                     hex.classList.add('rock'); 
-                    // Pouze termiti mají na kameni kurzor jako na klikatelný objekt
-                    if (gameState.chosenFaction === 'termiti') {
-                        hex.style.cursor = 'pointer';
-                    }
+                    if (gameState.chosenFaction === 'termiti') hex.style.cursor = 'pointer';
                     spawned++;
                 }
             }
@@ -332,23 +359,19 @@
         function spawnEnemy() {
             const r = gameState.enemyNestLocation.r, c = gameState.enemyNestLocation.c;
             const nest = document.getElementById(`hex-${r}-${c}`);
-            
             const isDefender = Math.random() < 0.3;
             const enemyClass = isDefender ? 'enemy enemy-defender' : 'enemy enemy-attacker';
             const enemyIcon = isDefender ? '🪲' : '🐜';
             const htmlString = `<div class="${enemyClass}">${enemyIcon}</div>`;
 
-            if (nest.innerHTML === '') {
-                nest.innerHTML = htmlString;
-            } else {
+            if (nest.innerHTML === '') { nest.innerHTML = htmlString; } 
+            else {
                 for(let dr=-1; dr<=1; dr++) {
                     for(let dc=-1; dc<=1; dc++) {
                         const nr = r+dr, nc = c+dc;
                         if(nr>=0 && nr<rows && nc>=0 && nc<columns && isAdjacent(r,c,nr,nc)) {
                             const h = document.getElementById(`hex-${nr}-${nc}`);
-                            if(h && h.innerHTML === '' && !h.classList.contains('rock')) { 
-                                h.innerHTML = htmlString; return; 
-                            }
+                            if(h && h.innerHTML === '' && !h.classList.contains('rock')) { h.innerHTML = htmlString; return; }
                         }
                     }
                 }
@@ -419,67 +442,75 @@
 
                         if (selectedHex) {
                             const sr = parseInt(selectedHex.dataset.row), sc = parseInt(selectedHex.dataset.col);
+                            const type = selectedHex.children[0].className;
+                            const hexDistance = getHexDistance(sr, sc, r, c);
+                            
+                            // FORMICA ELITNÍ STŘELBA NA DÁLKU (Až 2 hexy, cíl je nepřítel nebo hnízdo)
+                            let isFormicaRanged = (gameState.chosenFaction === 'formica' && type === 'elite' && (enemy || isEnemyNest) && hexDistance <= 2);
+
                             if (this === selectedHex) { this.classList.remove('selected'); selectedHex = null; }
                             else if (myUnit) { selectedHex.classList.remove('selected'); this.classList.add('selected'); selectedHex = this; }
+                            
+                            // 1. STŘELBA (Formica)
+                            else if (isFormicaRanged) {
+                                if (gameState.feromons < 1) { showMessage("Nemáš FB!", "#e74c3c"); return; }
+                                if (hexDistance === 2 && !hasLineOfSight(sr, sc, r, c)) { showMessage("Výhled na cíl blokuje kámen!", "#e74c3c"); return; }
+                                
+                                let roll = Math.floor(Math.random() * 6) + 1;
+                                let penalty = isDefender ? 1 : 0; 
+                                let penaltyText = isDefender ? " (-1 Krunýř)" : "";
+
+                                if (isEnemyNest && !enemy) {
+                                    if (roll + 1 >= 4) { gameState.enemyHP -= 2; showMessage(`🟢 Kyselinový zásah! Hnízdo ztrácí 2 HP.`, "#2ecc71"); } 
+                                    else { showMessage(`Střela na hnízdo minula cíl (Hod: ${roll}).`, "#e74c3c"); }
+                                } else if (enemy) {
+                                    let finalResult = roll + 1 - penalty;
+                                    if (finalResult >= 4) {
+                                        gameState.bio += 1; gameState.material += (isDefender ? 3 : 2);
+                                        showMessage(`🟢 Kyselina: ${roll} + 1${penaltyText} = <strong>${finalResult}</strong>. Zásah!`, "#2ecc71");
+                                        this.innerHTML = ''; // Zničí nepřítele, ale NEVSTOUPÍ tam
+                                    } else { showMessage(`Kyselina: ${roll} + 1${penaltyText} = <strong>${finalResult}</strong>. Minul jsi!`, "#e74c3c"); }
+                                }
+                                
+                                selectedHex.classList.remove('selected'); selectedHex = null;
+                                gameState.feromons -= 1; updateUI(); checkWinCondition();
+                            }
+                            
+                            // 2. STANDARDNÍ BĚŽNÝ POHYB A BOJ NA BLÍZKO (Všichni kromě střelby)
                             else if (isAdjacent(sr, sc, r, c)) {
                                 if (gameState.feromons < 1) { showMessage("Nemáš FB!", "#e74c3c"); return; }
                                 if (isMyNest) { showMessage("Zpět do hnízda vstoupit nelze.", "#e74c3c"); return; }
 
-                                const type = selectedHex.children[0].className;
-                                
-                                // --- ZPRACOVÁNÍ KAMENE PODLE FRAKCE ---
                                 if (isRock) {
-                                    if (gameState.chosenFaction !== 'termiti') {
-                                        showMessage("Kámen je neprůchodný! Těžit ho umí jen Termiti.", "#e74c3c");
-                                        return;
-                                    }
+                                    if (gameState.chosenFaction !== 'termiti') { showMessage("Kámen je neprůchodný! Těžit ho umí jen Termiti.", "#e74c3c"); return; }
                                     if (type === 'worker') {
                                         let roll = Math.floor(Math.random() * 6) + 1;
                                         if (roll >= 4) {
-                                            gameState.material += 5;
-                                            this.classList.remove('rock');
-                                            this.style.cursor = 'pointer';
-                                            showMessage(`⛏️ Kámen zničen (Hod: ${roll})! Získáno +5 Materiálu.`, "#f1c40f");
-                                        } else {
-                                            showMessage(`Těžba kamene selhala (Hod: ${roll}). Zkus to znovu.`, "#e74c3c");
-                                        }
-                                        selectedHex.classList.remove('selected'); selectedHex = null;
-                                        gameState.feromons -= 1; updateUI(); return;
-                                    } else {
-                                        showMessage("Kámen je příliš tvrdý! Rozbít ho umí jen Dělník 👷.", "#e74c3c");
-                                        return;
-                                    }
+                                            gameState.material += 5; this.classList.remove('rock'); this.style.cursor = 'pointer';
+                                            showMessage(`⛏️ Kámen zničen (Hod: ${roll})! +5 Materiálu.`, "#f1c40f");
+                                        } else { showMessage(`Těžba kamene selhala (Hod: ${roll}).`, "#e74c3c"); }
+                                        selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= 1; updateUI(); return;
+                                    } else { showMessage("Rozbít kámen umí jen Dělník 👷.", "#e74c3c"); return; }
                                 }
 
                                 if (isEnemyNest && !enemy) {
                                     if(type === 'worker') { showMessage("Dělník neumí dobývat hnízdo!", "#e74c3c"); return; }
-                                    
                                     let roll = Math.floor(Math.random() * 6) + 1;
                                     let bonus = 0;
                                     if (gameState.chosenFaction === 'blacks') bonus += Math.max(0, countAlliesAround(r, c) - 1);
                                     if (type === 'elite') bonus += 1;
-                                    
-                                    if (roll + bonus >= 4) {
-                                        gameState.enemyHP -= 2; showMessage(`🔥 Oblehací útok! Hnízdo ztrácí 2 HP.`, "#e67e22");
-                                    } else {
-                                        showMessage(`Útok na hnízdo selhal. Mravenec padl.`, "#e74c3c"); selectedHex.innerHTML = '';
-                                    }
-                                    selectedHex.classList.remove('selected'); selectedHex = null;
-                                    gameState.feromons -= 1; updateUI(); checkWinCondition(); return;
+                                    if (roll + bonus >= 4) { gameState.enemyHP -= 2; showMessage(`🔥 Oblehací útok! Hnízdo ztrácí 2 HP.`, "#e67e22"); } 
+                                    else { showMessage(`Útok na hnízdo selhal. Mravenec padl.`, "#e74c3c"); selectedHex.innerHTML = ''; }
+                                    selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= 1; updateUI(); checkWinCondition(); return;
                                 }
 
                                 if (enemy) {
                                     if(type === 'worker') { showMessage("Dělník byl sežrán!", "#e74c3c"); selectedHex.innerHTML = ''; }
                                     else {
                                         let roll = Math.floor(Math.random() * 6) + 1;
-                                        
-                                        // Bonusy podle frakce
                                         let bonus = 0;
-                                        if (gameState.chosenFaction === 'blacks') {
-                                            bonus += Math.max(0, countAlliesAround(r, c) - 1); // Rojení jen pro Blacks
-                                        }
-                                        if (type === 'elite') bonus += 1; // Elitní mají +1 vždy
-                                        
+                                        if (gameState.chosenFaction === 'blacks') bonus += Math.max(0, countAlliesAround(r, c) - 1);
+                                        if (type === 'elite') bonus += 1; 
                                         let penalty = isDefender ? 1 : 0; 
                                         let finalResult = roll + bonus - penalty;
                                         let penaltyText = isDefender ? " (-1 Krunýř)" : "";
@@ -489,8 +520,7 @@
                                             showMessage(`Boj: ${roll} + ${bonus}${penaltyText} = <strong>${finalResult}</strong>. Vítězství!`, "#f1c40f");
                                             if(!isEnemyNest) { this.innerHTML = selectedHex.innerHTML; selectedHex.innerHTML = ''; }
                                         } else { 
-                                            showMessage(`Boj: ${roll} + ${bonus}${penaltyText} = <strong>${finalResult}</strong>. Prohra!`, "#e74c3c"); 
-                                            selectedHex.innerHTML = ''; 
+                                            showMessage(`Boj: ${roll} + ${bonus}${penaltyText} = <strong>${finalResult}</strong>. Prohra!`, "#e74c3c"); selectedHex.innerHTML = ''; 
                                         }
                                     }
                                 } else {
@@ -499,8 +529,7 @@
                                     if (resCake) { gameState.bio += (type === 'worker') ? 6 : 4; }
                                     this.innerHTML = selectedHex.innerHTML; selectedHex.innerHTML = '';
                                 }
-                                selectedHex.classList.remove('selected'); selectedHex = null;
-                                gameState.feromons -= 1; updateUI(); checkWinCondition();
+                                selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= 1; updateUI(); checkWinCondition();
                             }
                         } else if (myUnit) { this.classList.add('selected'); selectedHex = this; }
                     });
@@ -534,17 +563,10 @@
                         const targetHex = possibleAttacks.find(h => h.classList.contains('nest')) || possibleAttacks[0];
                         if (Math.random() > 0.5) { 
                             if(targetHex.classList.contains('nest')) { 
-                                gameState.playerHP -= 1; 
-                                gameState.bio = Math.max(0, gameState.bio - 1); 
-                                showMessage("⚠️ Nájezd! Ztráta 1 HP a 1 Bio!", "#e74c3c"); 
-                                hex.innerHTML = ''; 
-                            } else { 
-                                targetHex.innerHTML = enemyUnit.outerHTML; 
-                                hex.innerHTML = ''; 
-                            }
-                        } else { 
-                            hex.innerHTML = ''; 
-                        }
+                                gameState.playerHP -= 1; gameState.bio = Math.max(0, gameState.bio - 1); 
+                                showMessage("⚠️ Nájezd! Ztráta 1 HP a 1 Bio!", "#e74c3c"); hex.innerHTML = ''; 
+                            } else { targetHex.innerHTML = enemyUnit.outerHTML; hex.innerHTML = ''; }
+                        } else { hex.innerHTML = ''; }
                         return; 
                     }
 
@@ -569,19 +591,14 @@
                             }
                         }
                     }
-                    if (best) {
-                        best.innerHTML = enemyUnit.outerHTML; 
-                        hex.innerHTML = '';
-                    }
+                    if (best) { best.innerHTML = enemyUnit.outerHTML; hex.innerHTML = ''; }
                 }
             });
             checkWinCondition();
         }
 
         function nextTurn() {
-            moveEnemies();
-            triggerRandomEvent();
-            gameState.feromons += 5;
+            moveEnemies(); triggerRandomEvent(); gameState.feromons += 5;
             if (Math.random() < 0.4) spawnResources(1);
             if (Math.random() < 0.6) spawnEnemy();
             updateUI();
