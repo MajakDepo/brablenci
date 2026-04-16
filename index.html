@@ -79,7 +79,9 @@
         button:disabled { background-color: #7f8c8d; cursor: not-allowed; opacity: 0.6; }
         button:hover:not(:disabled) { background-color: #d35400; }
 
-        .stats-box { background: #2c3e50; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
+        .stats-box { background: #2c3e50; padding: 10px; border-radius: 5px; margin-bottom: 10px; line-height: 1.5; }
+        .hp-bar { font-weight: bold; color: #e74c3c; }
+        .hp-bar.player { color: #2ecc71; }
     </style>
 </head>
 <body>
@@ -93,6 +95,9 @@
         <h2 id="faction-name">Frakce: Blacks</h2>
         
         <div class="stats-box">
+            <strong>Naše hnízdo (HP):</strong> <span id="player-hp" class="hp-bar player">10</span>/10<br>
+            <strong>Cizí hnízdo (HP):</strong> <span id="enemy-hp" class="hp-bar">10</span>/10<br>
+            <hr style="border-color: #7f8c8d; margin: 8px 0;">
             <strong>Feromonové body:</strong> <span id="fb-count">0</span><br>
             <strong>Bio (Jídlo):</strong> <span id="bio-count">0</span><br>
             <strong>Materiál:</strong> <span id="mat-count">0</span>
@@ -113,6 +118,8 @@
 
     <script>
         let gameState = {
+            playerHP: 10,
+            enemyHP: 10,
             bio: 3,
             material: 0,
             feromons: 10,
@@ -131,6 +138,8 @@
             document.getElementById('bio-count').innerText = gameState.bio;
             document.getElementById('mat-count').innerText = gameState.material;
             document.getElementById('fb-count').innerText = gameState.feromons;
+            document.getElementById('player-hp').innerText = gameState.playerHP;
+            document.getElementById('enemy-hp').innerText = gameState.enemyHP;
             
             document.getElementById('btn-build-hatchery').disabled = (gameState.material < 20 || gameState.hatcheryLvl >= 2);
             if(gameState.hatcheryLvl >= 2) document.getElementById('btn-build-hatchery').innerText = "Líheň 2 postavená ✅";
@@ -140,7 +149,6 @@
             document.getElementById('btn-hatch-elite').disabled = (gameState.bio < 3 || gameState.feromons < 1 || gameState.hatcheryLvl < 2);
         }
 
-        // Přidán parametr duration, aby delší zprávy (jako události) svítily déle
         function showMessage(text, color = "#2ecc71", duration = 4000) {
             const msgObj = document.getElementById('message');
             msgObj.innerHTML = text;
@@ -161,6 +169,20 @@
         }
 
         function getDistance(r1, c1, r2, c2) { return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(c1 - c2, 2)); }
+
+        function checkWinCondition() {
+            if (gameState.enemyHP <= 0) {
+                setTimeout(() => {
+                    alert("🏆 VÍTĚZSTVÍ! Nepřátelské hnízdo bylo zničeno!");
+                    location.reload();
+                }, 100);
+            } else if (gameState.playerHP <= 0) {
+                setTimeout(() => {
+                    alert("💀 PROHRA! Tvé hnízdo podlehlo nájezdům nepřítele.");
+                    location.reload();
+                }, 100);
+            }
+        }
 
         function buildHatchery() {
             if (gameState.material >= 20) {
@@ -238,45 +260,31 @@
             return allies;
         }
 
-        // NOVÁ FUNKCE: Náhodné události
         function triggerRandomEvent() {
             const eventRoll = Math.random();
-            if (eventRoll < 0.25) { // 25% šance na událost
+            if (eventRoll < 0.25) {
                 const eventType = Math.floor(Math.random() * 3);
-                
                 if (eventType === 0) {
-                    // DÉŠŤ: Zničí lístky a větvičky
-                    document.querySelectorAll('.res-bio, .res-mat, .res-cake').forEach(res => {
-                        res.parentElement.innerHTML = '';
-                    });
-                    showMessage("🌧️ UDÁLOST: Začalo pršet! Všechny suroviny na mapě byly spláchnuty.", "#3498db", 6000);
-                
+                    document.querySelectorAll('.res-bio, .res-mat, .res-cake').forEach(res => res.parentElement.innerHTML = '');
+                    showMessage("🌧️ UDÁLOST: Začalo pršet! Suroviny spláchnuty.", "#3498db", 6000);
                 } else if (eventType === 1) {
-                    // PTÁK: Sezobne náhodného mravence
                     const allAnts = Array.from(document.querySelectorAll('.ant, .worker, .elite, .enemy'));
                     if (allAnts.length > 0) {
                         const victim = allAnts[Math.floor(Math.random() * allAnts.length)];
-                        // Pokud sezobne zrovna mravence, kterého máme vybraného, musíme zrušit výběr
-                        if (selectedHex === victim.parentElement) {
-                            selectedHex.classList.remove('selected');
-                            selectedHex = null;
-                        }
+                        if (selectedHex === victim.parentElement) { selectedHex.classList.remove('selected'); selectedHex = null; }
                         victim.parentElement.innerHTML = '';
-                        showMessage("🐦 UDÁLOST: Přiletěl pták a sezobnul jednoho mravence na mapě!", "#e74c3c", 6000);
+                        showMessage("🐦 UDÁLOST: Pták sezobnul mravence!", "#e74c3c", 6000);
                     }
-                
                 } else if (eventType === 2) {
-                    // PIKNIK: Spadne dort
                     let spawned = 0;
-                    while (spawned < 3) { // 3 kousky dortu
+                    while (spawned < 3) {
                         const r = Math.floor(Math.random() * rows), c = Math.floor(Math.random() * columns);
                         const hex = document.getElementById(`hex-${r}-${c}`);
                         if (hex && hex.innerHTML === '' && !hex.classList.contains('rock') && !hex.classList.contains('nest') && !hex.classList.contains('enemy-nest')) {
-                            hex.innerHTML = '<div class="res-cake">🍰</div>';
-                            spawned++;
+                            hex.innerHTML = '<div class="res-cake">🍰</div>'; spawned++;
                         }
                     }
-                    showMessage("🍰 UDÁLOST: Lidé tu měli piknik! Na mapu spadly velké kusy jídla.", "#9b59b6", 6000);
+                    showMessage("🍰 UDÁLOST: Piknik! Na mapu spadly dorty.", "#9b59b6", 6000);
                 }
             }
         }
@@ -299,7 +307,9 @@
                         const enemy = this.querySelector('.enemy');
                         const resBio = this.querySelector('.res-bio');
                         const resMat = this.querySelector('.res-mat');
-                        const resCake = this.querySelector('.res-cake'); // Nový zdroj
+                        const resCake = this.querySelector('.res-cake');
+                        const isEnemyNest = this.classList.contains('enemy-nest');
+                        const isMyNest = this.classList.contains('nest');
 
                         if (selectedHex) {
                             const sr = parseInt(selectedHex.dataset.row), sc = parseInt(selectedHex.dataset.col);
@@ -307,8 +317,31 @@
                             else if (myUnit) { selectedHex.classList.remove('selected'); this.classList.add('selected'); selectedHex = this; }
                             else if (isAdjacent(sr, sc, r, c) && !this.classList.contains('rock')) {
                                 if (gameState.feromons < 1) { showMessage("Nemáš FB!", "#e74c3c"); return; }
+                                
+                                // Ochrana proti vstupu zpět do vlastního hnízda
+                                if (isMyNest) { showMessage("Zpět do hnízda vstoupit nelze.", "#e74c3c"); return; }
+
                                 const type = selectedHex.children[0].className;
                                 
+                                // ÚTOK PŘÍMO NA CIZÍ HNÍZDO (když na něm nestojí mravenec)
+                                if (isEnemyNest && !enemy) {
+                                    if(type === 'worker') { showMessage("Dělník neumí dobývat hnízdo!", "#e74c3c"); return; }
+                                    
+                                    let roll = Math.floor(Math.random() * 6) + 1, bonus = countAlliesAround(r, c) - 1;
+                                    if (type === 'elite') bonus += 1;
+                                    
+                                    if (roll + bonus >= 4) {
+                                        gameState.enemyHP -= 2;
+                                        showMessage(`🔥 Úspěšný oblehací útok! Hnízdo ztrácí 2 HP.`, "#e67e22");
+                                    } else {
+                                        showMessage(`Útok na hnízdo selhal. Mravenec padl.`, "#e74c3c");
+                                        selectedHex.innerHTML = '';
+                                    }
+                                    selectedHex.classList.remove('selected'); selectedHex = null;
+                                    gameState.feromons -= 1; updateUI(); checkWinCondition();
+                                    return;
+                                }
+
                                 if (enemy) {
                                     if(type === 'worker') { showMessage("Dělník byl sežrán!", "#e74c3c"); selectedHex.innerHTML = ''; }
                                     else {
@@ -317,26 +350,18 @@
                                         if (roll + bonus >= 4) {
                                             gameState.bio += 1; gameState.material += 2;
                                             showMessage(`Vítězství! (+1 Bio, +2 Mat)`, "#f1c40f");
-                                            this.innerHTML = selectedHex.innerHTML; selectedHex.innerHTML = '';
+                                            // Pokud zabije obránce na hnízdě, mravenec zůstane na své pozici
+                                            if(!isEnemyNest) { this.innerHTML = selectedHex.innerHTML; selectedHex.innerHTML = ''; }
                                         } else { showMessage(`Prohra!`, "#e74c3c"); selectedHex.innerHTML = ''; }
                                     }
                                 } else {
-                                    if (resBio) {
-                                        let gain = (type === 'worker') ? 3 : 2;
-                                        gameState.bio += gain; showMessage(`Bio +${gain}`, "#2ecc71");
-                                    }
-                                    if (resMat) {
-                                        let gain = (type === 'worker') ? 4 : 2;
-                                        gameState.material += gain; showMessage(`Materiál +${gain}`, "#3498db");
-                                    }
-                                    if (resCake) {
-                                        let gain = (type === 'worker') ? 6 : 4; // Dort dává obrovský bonus
-                                        gameState.bio += gain; showMessage(`Obrovská hostina! Bio +${gain}`, "#9b59b6");
-                                    }
+                                    if (resBio) { gameState.bio += (type === 'worker') ? 3 : 2; }
+                                    if (resMat) { gameState.material += (type === 'worker') ? 4 : 2; }
+                                    if (resCake) { gameState.bio += (type === 'worker') ? 6 : 4; }
                                     this.innerHTML = selectedHex.innerHTML; selectedHex.innerHTML = '';
                                 }
                                 selectedHex.classList.remove('selected'); selectedHex = null;
-                                gameState.feromons -= 1; updateUI();
+                                gameState.feromons -= 1; updateUI(); checkWinCondition();
                             }
                         } else if (myUnit) { this.classList.add('selected'); selectedHex = this; }
                     });
@@ -364,23 +389,29 @@
                         }
                     }
                     if (best) {
-                        if (best.querySelector('.ant, .worker, .elite') || best.classList.contains('nest')) {
+                        const isPlayerNest = best.classList.contains('nest');
+                        if (best.querySelector('.ant, .worker, .elite') || isPlayerNest) {
                             if (Math.random() > 0.5) {
-                                if(best.classList.contains('nest')) { gameState.bio = Math.max(0, gameState.bio - 3); hex.innerHTML = ''; }
+                                if(isPlayerNest) { 
+                                    gameState.playerHP -= 1; 
+                                    gameState.bio = Math.max(0, gameState.bio - 1); 
+                                    showMessage("⚠️ Nájezd! Ztráta 1 HP a 1 Bio!", "#e74c3c"); 
+                                    hex.innerHTML = ''; 
+                                }
                                 else { best.innerHTML = '<div class="enemy">🐜</div>'; hex.innerHTML = ''; }
                             } else { hex.innerHTML = ''; }
                         } else { 
-                            // Nepřítel ničí suroviny (včetně dortů), když na ně šlápne
                             best.innerHTML = '<div class="enemy">🐜</div>'; hex.innerHTML = ''; 
                         }
                     }
                 }
             });
+            checkWinCondition();
         }
 
         function nextTurn() {
             moveEnemies();
-            triggerRandomEvent(); // Spuštění událostí po tahu nepřítele
+            triggerRandomEvent();
             gameState.feromons += 5;
             if (Math.random() < 0.4) spawnResources(1);
             if (Math.random() < 0.6) spawnEnemy();
