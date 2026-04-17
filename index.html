@@ -99,7 +99,7 @@
                 <h2>Blacks (Roj)</h2><p>Tví mravenci získávají bonus +1 k hodu kostkou v boji za každého dalšího tvého mravence u cíle.</p>
             </div>
             <div class="card termiti" onclick="startGame('termiti')">
-                <h2>Termiti (Mistři)</h2><p>Všechny stavby tě stojí o polovinu méně. Z velkých těžišť dřeva nosíš +10 Mat. Dokážeš vytěžit kámen.</p>
+                <h2>Termiti (Mistři)</h2><p>Všechny stavby tě stojí o polovinu méně. Z velkých těžišť dřeva nosíš +10 Mat místo 5. Dělník těží kámen.</p>
             </div>
             <div class="card formica" onclick="startGame('formica')">
                 <h2>Formica (Plivači)</h2><p>Tví Elitní vojáci střílí kyselinu až na vzdálenost 2 hexů. Při neúspěšném hodu v boji nezemřou.</p>
@@ -186,7 +186,6 @@
                 document.getElementById('btn-hatch-elite').innerText = 'Líhnout Elitu 🐝 (3 Bio)';
             }
 
-            // Nastavení stavebního menu podle frakce
             let isTermite = faction === 'termiti';
             document.getElementById('worker-mode').innerHTML = `
                 <option value="move">Pohyb / Těžba surovin</option>
@@ -306,23 +305,39 @@
             }
         }
 
+        // --- NOVÝ SYSTÉM UMÍSTĚNÍ ZDROJŮ (DO STŘEDU MAPY) ---
         function spawnPermanentNodes() {
-            let bioPlaced = false;
-            while(!bioPlaced) {
-                let r = Math.floor(Math.random() * rows), c = Math.floor(Math.random() * columns);
-                let hex = document.getElementById(`hex-${r}-${c}`);
-                if (hex && !hex.classList.contains('water') && !hex.classList.contains('nest') && !hex.classList.contains('enemy-nest') && getDistance(r,c,gameState.nestLocation.r, gameState.nestLocation.c) > 2) {
-                    hex.className = 'hex node-bio'; bioPlaced = true;
+            let validHexes = [];
+            let centerR = rows / 2;
+            let centerC = columns / 2;
+
+            // Sesbíráme všechna volná políčka a spočítáme jejich vzdálenost od středu mapy
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < columns; c++) {
+                    let hex = document.getElementById(`hex-${r}-${c}`);
+                    if (hex && !hex.classList.contains('water') && !hex.classList.contains('rock') && !hex.classList.contains('nest') && !hex.classList.contains('enemy-nest')) {
+                        let distToCenter = getDistance(r, c, centerR, centerC);
+                        validHexes.push({r: r, c: c, hex: hex, dist: distToCenter});
+                    }
                 }
             }
-            let matPlaced = false;
-            while(!matPlaced) {
-                let r = Math.floor(Math.random() * rows), c = Math.floor(Math.random() * columns);
-                let hex = document.getElementById(`hex-${r}-${c}`);
-                if (hex && !hex.classList.contains('water') && !hex.classList.contains('nest') && !hex.classList.contains('enemy-nest') && !hex.classList.contains('node-bio') && getDistance(r,c,gameState.nestLocation.r, gameState.nestLocation.c) > 2) {
-                    hex.className = 'hex node-mat'; matPlaced = true;
-                }
-            }
+
+            // Seřadíme políčka od nejbližších ke středu
+            validHexes.sort((a, b) => a.dist - b.dist);
+
+            // Vezmeme 8 nejlepších (nejvíce ve středu) a z nich náhodně vybereme 2
+            let centerCandidates = validHexes.slice(0, 8);
+            
+            // Umístění Bio (Mrtvý brouk)
+            let bioIndex = Math.floor(Math.random() * centerCandidates.length);
+            let bioHex = centerCandidates[bioIndex].hex;
+            bioHex.className = 'hex node-bio';
+            centerCandidates.splice(bioIndex, 1); // Odstraníme z pole, aby tam nepadlo i Dřevo
+
+            // Umístění Materiálu (Dřevo)
+            let matIndex = Math.floor(Math.random() * centerCandidates.length);
+            let matHex = centerCandidates[matIndex].hex;
+            matHex.className = 'hex node-mat';
         }
 
         function spawnResources(amount) {
