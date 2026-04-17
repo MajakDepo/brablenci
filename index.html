@@ -135,10 +135,10 @@
             <div class="room-box">
                 <h3>🥚 Architektura & Líhně</h3>
                 <button id="btn-build-l2" onclick="buildL2()">Líheň 2 (20 Mat) - Odemkne Elitu</button>
-                <button id="btn-build-l3" onclick="buildL3()">Líheň 3 (30 Mat, 5 Bio) - Odemkne Stavby</button>
+                <button id="btn-build-l3" onclick="buildL3()">Líheň 3 (30 Mat, 5 Bio) - Odemkne Pevnosti</button>
                 <hr style="border-color:#7f8c8d; margin:10px 0;">
                 
-                <div id="build-menu" style="display:none; margin-bottom:10px;">
+                <div id="build-menu" style="margin-bottom:10px;">
                     <label style="color:#f1c40f; font-weight:bold;">👷 Dělník (Akce):</label>
                     <select id="worker-mode">
                         </select>
@@ -166,6 +166,31 @@
         const columns = 12; const rows = 10;
         const boardElement = document.getElementById('board');
 
+        function updateWorkerMenu() {
+            let isTermite = gameState.chosenFaction === 'termiti';
+            let currentSelection = document.getElementById('worker-mode') ? document.getElementById('worker-mode').value : 'move';
+            
+            let html = `<option value="move">Pohyb / Těžba surovin</option>`;
+            // Dálnice je dostupná ihned od začátku
+            html += `<option value="highway">🛣️ Feromonová dálnice (${isTermite ? 1 : 2} Mat)</option>`;
+            
+            // Pokročilé stavby se odemknou až na Líhni 3
+            if (gameState.hatcheryLvl >= 3) {
+                html += `<option value="wall">🧱 Obranný val (${isTermite ? 4 : 8} Mat)</option>
+                         <option value="tunnel">🕳️ Tunel (Dálka ${isTermite ? '+2' : '+5'} Mat)</option>
+                         <option value="trench">💧 Vykopat příkop u vody (${isTermite ? 5 : 10} Mat)</option>
+                         <option value="bridge">🌉 Most z listí přes vodu (${isTermite ? 8 : 15} Mat)</option>
+                         <option value="trap">🕸️ Pavučinová past (${isTermite ? 2 : 3} Mat)</option>`;
+            }
+            
+            document.getElementById('worker-mode').innerHTML = html;
+            
+            // Pokus se zachovat předchozí výběr hráče
+            if (html.includes(`value="${currentSelection}"`)) {
+                document.getElementById('worker-mode').value = currentSelection;
+            }
+        }
+
         function startGame(faction) {
             gameState.chosenFaction = faction;
             document.getElementById('start-screen').style.display = 'none';
@@ -186,17 +211,7 @@
                 document.getElementById('btn-hatch-elite').innerText = 'Líhnout Elitu 🐝 (3 Bio)';
             }
 
-            let isTermite = faction === 'termiti';
-            document.getElementById('worker-mode').innerHTML = `
-                <option value="move">Pohyb / Těžba surovin</option>
-                <option value="wall">🧱 Obranný val (${isTermite ? 4 : 8} Mat)</option>
-                <option value="tunnel">🕳️ Tunel (Dálka ${isTermite ? '+2' : '+5'} Mat)</option>
-                <option value="trench">💧 Vykopat příkop u vody (${isTermite ? 5 : 10} Mat)</option>
-                <option value="bridge">🌉 Most z listí přes vodu (${isTermite ? 8 : 15} Mat)</option>
-                <option value="trap">🕸️ Pavučinová past (${isTermite ? 2 : 3} Mat)</option>
-                <option value="highway">🛣️ Feromonová dálnice (${isTermite ? 1 : 2} Mat)</option>
-            `;
-
+            updateWorkerMenu();
             createBoard(); generateTerrain(); spawnPermanentNodes(); spawnResources(6); spawnEnemy(); updateUI();
         }
 
@@ -213,7 +228,6 @@
             document.getElementById('btn-build-l3').disabled = (gameState.material < 30 || gameState.bio < 5 || gameState.hatcheryLvl >= 3);
             if(gameState.hatcheryLvl >= 3) {
                 document.getElementById('btn-build-l3').innerText = "Líheň 3 postavena ✅";
-                document.getElementById('build-menu').style.display = 'block';
             }
             
             document.getElementById('btn-hatch-basic').disabled = (gameState.bio < 1 || gameState.feromons < 1);
@@ -270,7 +284,12 @@
             if (gameState.material >= 20) { gameState.material -= 20; gameState.hatcheryLvl = 2; showMessage("Líheň 2 postavená! Odemčeni 🦂/🐝", "#f1c40f"); updateUI(); }
         }
         function buildL3() {
-            if (gameState.material >= 30 && gameState.bio >= 5) { gameState.material -= 30; gameState.bio -= 5; gameState.hatcheryLvl = 3; showMessage("Líheň 3 postavená! Dělníci mohou stavět.", "#f1c40f"); updateUI(); }
+            if (gameState.material >= 30 && gameState.bio >= 5) { 
+                gameState.material -= 30; gameState.bio -= 5; gameState.hatcheryLvl = 3; 
+                showMessage("Líheň 3 postavená! Dělníci mohou stavět pokročilé budovy.", "#f1c40f"); 
+                updateWorkerMenu();
+                updateUI(); 
+            }
         }
 
         function hatchUnit(type) {
@@ -305,13 +324,11 @@
             }
         }
 
-        // --- NOVÝ SYSTÉM UMÍSTĚNÍ ZDROJŮ (DO STŘEDU MAPY) ---
         function spawnPermanentNodes() {
             let validHexes = [];
             let centerR = rows / 2;
             let centerC = columns / 2;
 
-            // Sesbíráme všechna volná políčka a spočítáme jejich vzdálenost od středu mapy
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < columns; c++) {
                     let hex = document.getElementById(`hex-${r}-${c}`);
@@ -322,19 +339,14 @@
                 }
             }
 
-            // Seřadíme políčka od nejbližších ke středu
             validHexes.sort((a, b) => a.dist - b.dist);
-
-            // Vezmeme 8 nejlepších (nejvíce ve středu) a z nich náhodně vybereme 2
             let centerCandidates = validHexes.slice(0, 8);
             
-            // Umístění Bio (Mrtvý brouk)
             let bioIndex = Math.floor(Math.random() * centerCandidates.length);
             let bioHex = centerCandidates[bioIndex].hex;
             bioHex.className = 'hex node-bio';
-            centerCandidates.splice(bioIndex, 1); // Odstraníme z pole, aby tam nepadlo i Dřevo
+            centerCandidates.splice(bioIndex, 1); 
 
-            // Umístění Materiálu (Dřevo)
             let matIndex = Math.floor(Math.random() * centerCandidates.length);
             let matHex = centerCandidates[matIndex].hex;
             matHex.className = 'hex node-mat';
