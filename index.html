@@ -48,7 +48,6 @@
         .hex.tunnel { border: 3px dashed #3498db; }
         .hex.tunnel::after { content: "🕳️"; font-size: 20px; position: absolute; top: 5%; left: 5%; pointer-events: none; }
 
-        /* VELKÁ TĚŽIŠTĚ */
         .hex.node-bio { background-color: #a8e6cf; border: 2px solid #27ae60; }
         .hex.node-bio::after { content: "🥩"; font-size: 30px; position: absolute; top: 15%; left: 15%; pointer-events: none; }
         .hex.node-mat { background-color: #d4a373; border: 2px solid #8b5a2b; }
@@ -62,8 +61,7 @@
             font-size: 30px; display: flex; justify-content: center; align-items: center; height: 100%; pointer-events: none; position: absolute; width: 100%;
         }
         
-        /* Pracant s nákladem */
-        .worker-loaded { font-size: 20px; } /* Menší font, aby se vešly obě ikony */
+        .worker-loaded { font-size: 20px; } 
 
         .enemy { border-radius: 50%; }
         .enemy-attacker { background-color: rgba(231, 76, 60, 0.4); } 
@@ -101,7 +99,7 @@
                 <h2>Blacks (Roj)</h2><p>Tví mravenci získávají bonus +1 k hodu kostkou v boji za každého dalšího tvého mravence u cíle.</p>
             </div>
             <div class="card termiti" onclick="startGame('termiti')">
-                <h2>Termiti (Drtiči)</h2><p>Tví dělníci mohou vytěžit kamenné překážky na mapě (hod 4+) za masivní bonus +5 Materiálu.</p>
+                <h2>Termiti (Mistři)</h2><p>Všechny stavby tě stojí o polovinu méně. Z velkých těžišť dřeva nosíš +10 Mat. Dokážeš vytěžit kámen.</p>
             </div>
             <div class="card formica" onclick="startGame('formica')">
                 <h2>Formica (Plivači)</h2><p>Tví Elitní vojáci střílí kyselinu až na vzdálenost 2 hexů. Při neúspěšném hodu v boji nezemřou.</p>
@@ -143,14 +141,7 @@
                 <div id="build-menu" style="display:none; margin-bottom:10px;">
                     <label style="color:#f1c40f; font-weight:bold;">👷 Dělník (Akce):</label>
                     <select id="worker-mode">
-                        <option value="move">Pohyb / Těžba</option>
-                        <option value="wall">🧱 Obranný val (8 Mat)</option>
-                        <option value="tunnel">🕳️ Tunel (5+ Mat podle dálky)</option>
-                        <option value="trench">💧 Vykopat příkop u vody (10 Mat)</option>
-                        <option value="bridge">🌉 Most z listí přes vodu (15 Mat)</option>
-                        <option value="trap">🕸️ Pavučinová past (3 Mat)</option>
-                        <option value="highway">🛣️ Feromonová dálnice (2 Mat)</option>
-                    </select>
+                        </select>
                 </div>
 
                 <button id="btn-hatch-worker" onclick="hatchUnit('worker')">Líhnout Dělníka 👷 (1 Bio)</button>
@@ -185,7 +176,7 @@
                 document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Rojení.</strong><br>V boji získáš +1 k hodu za každého dalšího tvého mravence u cíle.";
             } else if (faction === 'termiti') {
                 document.getElementById('faction-name').innerText = "Podzemí: Termiti";
-                document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Drtiči terénu.</strong><br>Dělník může za 1 FB vytěžit Kámen (Hod 4+) za +5 Materiálu.";
+                document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Mistři stavitelé.</strong><br>Všechny stavby zlevněny o 50%. Těžba dřevěného bloku dává +10 Mat místo 5. Dělník těží kámen.";
             } else if (faction === 'formica') {
                 document.getElementById('faction-name').innerText = "Podzemí: Formica";
                 document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Střelba kyseliny.</strong><br>Elitní voják střílí až na 2 hexy. Při neúspěchu nezemře.";
@@ -194,6 +185,18 @@
                 document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Vzdušná převaha.</strong><br>Okřídlení vojáci 🐝 mohou za 2 FB přeskočit překážky na vzdálenost 2 hexů.";
                 document.getElementById('btn-hatch-elite').innerText = 'Líhnout Elitu 🐝 (3 Bio)';
             }
+
+            // Nastavení stavebního menu podle frakce
+            let isTermite = faction === 'termiti';
+            document.getElementById('worker-mode').innerHTML = `
+                <option value="move">Pohyb / Těžba surovin</option>
+                <option value="wall">🧱 Obranný val (${isTermite ? 4 : 8} Mat)</option>
+                <option value="tunnel">🕳️ Tunel (Dálka ${isTermite ? '+2' : '+5'} Mat)</option>
+                <option value="trench">💧 Vykopat příkop u vody (${isTermite ? 5 : 10} Mat)</option>
+                <option value="bridge">🌉 Most z listí přes vodu (${isTermite ? 8 : 15} Mat)</option>
+                <option value="trap">🕸️ Pavučinová past (${isTermite ? 2 : 3} Mat)</option>
+                <option value="highway">🛣️ Feromonová dálnice (${isTermite ? 1 : 2} Mat)</option>
+            `;
 
             createBoard(); generateTerrain(); spawnPermanentNodes(); spawnResources(6); spawnEnemy(); updateUI();
         }
@@ -304,7 +307,6 @@
         }
 
         function spawnPermanentNodes() {
-            // Bio Node (Mrtvý brouk)
             let bioPlaced = false;
             while(!bioPlaced) {
                 let r = Math.floor(Math.random() * rows), c = Math.floor(Math.random() * columns);
@@ -313,7 +315,6 @@
                     hex.className = 'hex node-bio'; bioPlaced = true;
                 }
             }
-            // Mat Node (Kus dřeva)
             let matPlaced = false;
             while(!matPlaced) {
                 let r = Math.floor(Math.random() * rows), c = Math.floor(Math.random() * columns);
@@ -433,7 +434,7 @@
                         if (selectedHex) {
                             const sr = parseInt(selectedHex.dataset.row), sc = parseInt(selectedHex.dataset.col);
                             const unitHtml = selectedHex.children[0];
-                            const type = unitHtml.className.split(' ')[0]; // Získá ant, worker, elite
+                            const type = unitHtml.className.split(' ')[0]; 
                             const isCarrying = unitHtml.classList.contains('carrying-bio') || unitHtml.classList.contains('carrying-mat');
                             const hexDistance = getHexDistance(sr, sc, r, c);
                             
@@ -449,12 +450,14 @@
                             else if (type === 'worker' && workerMode !== 'move' && isNormalMove) {
                                 if (gameState.feromons < 1) { showMessage("Nemáš FB na stavbu!", "#e74c3c"); return; }
                                 let costMat = 0; let success = false;
+                                let isTermite = gameState.chosenFaction === 'termiti';
 
                                 if (workerMode === 'wall' && !enemy && !isRock && !isWater && !isMyNest && !isEnemyNest && !wall && !isNodeBio && !isNodeMat) {
-                                    costMat = 8;
+                                    costMat = isTermite ? 4 : 8;
                                     if (gameState.material >= costMat) { this.innerHTML += '<div class="wall" data-hp="4">🧱<span style="font-size:12px; color:white;">4HP</span></div>'; success = true; }
                                 } else if (workerMode === 'tunnel' && !enemy && !isRock && !isWater && !isMyNest && !isEnemyNest && !wall && !isTunnel && !isNodeBio && !isNodeMat) {
-                                    costMat = 5 + Math.floor(getDistance(r, c, gameState.nestLocation.r, gameState.nestLocation.c));
+                                    let distCost = Math.floor(getDistance(r, c, gameState.nestLocation.r, gameState.nestLocation.c));
+                                    costMat = isTermite ? Math.ceil((5 + distCost)/2) : (5 + distCost);
                                     if (gameState.material >= costMat) { this.classList.add('tunnel'); gameState.tunnels.push({r, c}); success = true; }
                                 } else if (workerMode === 'trench' && !isEnemyNest && !isMyNest && !isRock && !isWater && !wall && !isNodeBio && !isNodeMat) {
                                     let nearWater = false;
@@ -462,17 +465,17 @@
                                         if (isAdjacent(r,c,r+dr,c+dc)) { let h = document.getElementById(`hex-${r+dr}-${c+dc}`); if (h && h.classList.contains('water')) nearWater = true; }
                                     }}
                                     if (nearWater) {
-                                        costMat = 10;
+                                        costMat = isTermite ? 5 : 10;
                                         if (gameState.material >= costMat) { this.className = 'hex water'; this.style.cursor = 'not-allowed'; this.innerHTML = ''; success = true; }
                                     } else { showMessage("Příkop musí navazovat na existující Vodu!", "#e74c3c"); return; }
                                 } else if (workerMode === 'bridge' && isWater) {
-                                    costMat = 15;
+                                    costMat = isTermite ? 8 : 15;
                                     if (gameState.material >= costMat) { this.classList.remove('water'); this.classList.add('bridge'); this.style.cursor = 'pointer'; success = true; }
                                 } else if (workerMode === 'trap' && !enemy && !isRock && !isWater && !isMyNest && !isEnemyNest && !wall && !this.querySelector('.trap')) {
-                                    costMat = 3;
+                                    costMat = isTermite ? 2 : 3;
                                     if (gameState.material >= costMat) { this.innerHTML += '<div class="trap">🕸️</div>'; success = true; }
                                 } else if (workerMode === 'highway' && !isRock && !isWater && !isHighway) {
-                                    costMat = 2;
+                                    costMat = isTermite ? 1 : 2;
                                     if (gameState.material >= costMat) { this.classList.add('highway'); success = true; }
                                 }
 
@@ -520,12 +523,14 @@
                                 if (gameState.feromons < actionCost) { showMessage(`Tato akce stojí ${actionCost} FB!`, "#e74c3c"); return; }
                                 if (isWater && !isBridge) { showMessage("Voda je pro tvé mravence neprůchodná!", "#3498db"); return; }
 
-                                // --- NOVINKA: VYKLÁDKA V HNÍZDĚ / TUNELU ---
+                                // VYKLÁDKA
                                 if (isMyNest || isTunnel) {
                                     if (isCarrying) {
                                         if (unitHtml.classList.contains('carrying-bio')) { gameState.bio += 5; showMessage("Zásoby uloženy: +5 Bio!", "#2ecc71"); }
-                                        else if (unitHtml.classList.contains('carrying-mat')) { gameState.material += 5; showMessage("Zásoby uloženy: +5 Materiál!", "#3498db"); }
-                                        // Vyprázdnění dělníka (zůstává stát na svém původním místě, nevejde do hnízda)
+                                        else if (unitHtml.classList.contains('carrying-mat')) { 
+                                            let gain = (gameState.chosenFaction === 'termiti') ? 10 : 5;
+                                            gameState.material += gain; showMessage(`Zásoby uloženy: +${gain} Materiál!`, "#3498db"); 
+                                        }
                                         selectedHex.innerHTML = '<div class="worker">👷</div>';
                                         selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= actionCost; updateUI(); return;
                                     } else {
@@ -533,14 +538,13 @@
                                     }
                                 }
 
-                                // --- NOVINKA: NAKLÁDÁNÍ NA TĚŽIŠTI ---
+                                // NAKLÁDÁNÍ 
                                 if (isNodeBio || isNodeMat) {
                                     if (type === 'worker') {
                                         if (isCarrying) { showMessage("Dělník už má plný batoh!", "#e74c3c"); return; }
-                                        // Naložení
                                         if (isNodeBio) selectedHex.innerHTML = '<div class="worker worker-loaded carrying-bio">👷🥩</div>';
                                         if (isNodeMat) selectedHex.innerHTML = '<div class="worker worker-loaded carrying-mat">👷🪵</div>';
-                                        showMessage("Náklad naložen! Musíš ho odnést do Hnízda nebo do Tunelu.", "#f1c40f");
+                                        showMessage("Náklad naložen! Odnes ho do Hnízda nebo Tunelu.", "#f1c40f");
                                         selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= actionCost; updateUI(); return;
                                     } else {
                                         showMessage("Z Velkých těžišť umí suroviny odnášet jen Dělník 👷.", "#e74c3c"); return;
@@ -597,8 +601,7 @@
                                         } else { showMessage(`Boj: ${roll} + ${bonus}${penaltyText} = <strong>${finalResult}</strong>. Prohra!`, "#e74c3c"); selectedHex.innerHTML = ''; }
                                     }
                                 } else {
-                                    // Sběr malých surovin cestou (zůstává jako okamžitý bonus k přežití)
-                                    if (resBio) { gameState.bio += (type === 'worker') ? 3 : 2; resBio.remove(); showMessage("Spolknuta malá svačinka (+Bio)!", "#2ecc71");}
+                                    if (resBio) { gameState.bio += (type === 'worker') ? 3 : 2; resBio.remove(); showMessage("Svačinka cestou (+Bio)!", "#2ecc71");}
                                     if (resMat) { gameState.material += (type === 'worker') ? 4 : 2; resMat.remove(); showMessage("Sebrána větvička (+Mat)!", "#3498db");}
                                     if (resCake) { gameState.bio += (type === 'worker') ? 6 : 4; resCake.remove(); showMessage("Dort! Záchrana z nebes!", "#9b59b6");}
                                     
