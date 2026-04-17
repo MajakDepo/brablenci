@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Válka Mravenců - Prototyp</title>
     <style>
-        body {
-            background-color: #2c3e50; color: #ecf0f1; font-family: Arial, sans-serif;
-            margin: 0; padding: 0; height: 100vh;
-        }
-
+        body { background-color: #2c3e50; color: #ecf0f1; font-family: Arial, sans-serif; margin: 0; padding: 0; height: 100vh; }
         #start-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; }
         #start-screen h1 { font-size: 4em; margin-bottom: 10px; color: #f1c40f; }
         #start-screen p { font-size: 1.2em; margin-bottom: 40px; color: #bdc3c7; }
@@ -99,7 +95,7 @@
                 <h2>Blacks (Roj)</h2><p>Tví mravenci získávají bonus +1 k hodu kostkou v boji za každého dalšího tvého mravence u cíle.</p>
             </div>
             <div class="card termiti" onclick="startGame('termiti')">
-                <h2>Termiti (Mistři)</h2><p>Všechny stavby tě stojí o polovinu méně. Z velkých těžišť dřeva nosíš +10 Mat místo 5. Dělník těží kámen.</p>
+                <h2>Termiti (Mistři)</h2><p>Všechny stavby tě stojí o polovinu méně. Z velkých těžišť dřeva nosíš +10 Mat. Dělník těží kámen.</p>
             </div>
             <div class="card formica" onclick="startGame('formica')">
                 <h2>Formica (Plivači)</h2><p>Tví Elitní vojáci střílí kyselinu až na vzdálenost 2 hexů. Při neúspěšném hodu v boji nezemřou.</p>
@@ -134,11 +130,11 @@
 
             <div class="room-box">
                 <h3>🥚 Architektura & Líhně</h3>
-                <button id="btn-build-l2" onclick="buildL2()">Líheň 2 (20 Mat) - Odemkne Elitu</button>
+                <button id="btn-build-l2" onclick="buildL2()">Líheň 2 (20 Mat) - Odemkne Dálnice a Elitu</button>
                 <button id="btn-build-l3" onclick="buildL3()">Líheň 3 (30 Mat, 5 Bio) - Odemkne Pevnosti</button>
                 <hr style="border-color:#7f8c8d; margin:10px 0;">
                 
-                <div id="build-menu" style="margin-bottom:10px;">
+                <div id="build-menu" style="display:none; margin-bottom:10px;">
                     <label style="color:#f1c40f; font-weight:bold;">👷 Dělník (Akce):</label>
                     <select id="worker-mode">
                         </select>
@@ -171,10 +167,11 @@
             let currentSelection = document.getElementById('worker-mode') ? document.getElementById('worker-mode').value : 'move';
             
             let html = `<option value="move">Pohyb / Těžba surovin</option>`;
-            // Dálnice je dostupná ihned od začátku
-            html += `<option value="highway">🛣️ Feromonová dálnice (${isTermite ? 1 : 2} Mat)</option>`;
             
-            // Pokročilé stavby se odemknou až na Líhni 3
+            if (gameState.hatcheryLvl >= 2) {
+                html += `<option value="highway">🛣️ Feromonová dálnice (${isTermite ? 1 : 2} Mat)</option>`;
+            }
+            
             if (gameState.hatcheryLvl >= 3) {
                 html += `<option value="wall">🧱 Obranný val (${isTermite ? 4 : 8} Mat)</option>
                          <option value="tunnel">🕳️ Tunel (Dálka ${isTermite ? '+2' : '+5'} Mat)</option>
@@ -184,8 +181,6 @@
             }
             
             document.getElementById('worker-mode').innerHTML = html;
-            
-            // Pokus se zachovat předchozí výběr hráče
             if (html.includes(`value="${currentSelection}"`)) {
                 document.getElementById('worker-mode').value = currentSelection;
             }
@@ -201,7 +196,7 @@
                 document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Rojení.</strong><br>V boji získáš +1 k hodu za každého dalšího tvého mravence u cíle.";
             } else if (faction === 'termiti') {
                 document.getElementById('faction-name').innerText = "Podzemí: Termiti";
-                document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Mistři stavitelé.</strong><br>Všechny stavby zlevněny o 50%. Těžba dřevěného bloku dává +10 Mat místo 5. Dělník těží kámen.";
+                document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Mistři stavitelé.</strong><br>Stavby zlevněny o 50%. Těžba dřeva +10 Mat. Dělník těží kámen.";
             } else if (faction === 'formica') {
                 document.getElementById('faction-name').innerText = "Podzemí: Formica";
                 document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Střelba kyseliny.</strong><br>Elitní voják střílí až na 2 hexy. Při neúspěchu nezemře.";
@@ -223,7 +218,10 @@
             document.getElementById('enemy-hp').innerText = gameState.enemyHP;
             
             document.getElementById('btn-build-l2').disabled = (gameState.material < 20 || gameState.hatcheryLvl >= 2);
-            if(gameState.hatcheryLvl >= 2) document.getElementById('btn-build-l2').innerText = "Líheň 2 postavena ✅";
+            if(gameState.hatcheryLvl >= 2) {
+                document.getElementById('btn-build-l2').innerText = "Líheň 2 postavena ✅";
+                document.getElementById('build-menu').style.display = 'block'; 
+            }
             
             document.getElementById('btn-build-l3').disabled = (gameState.material < 30 || gameState.bio < 5 || gameState.hatcheryLvl >= 3);
             if(gameState.hatcheryLvl >= 3) {
@@ -262,6 +260,36 @@
         }
         function getDistance(r1, c1, r2, c2) { return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(c1 - c2, 2)); }
 
+        // BFS algoritmus pro kontrolu, zda jsou dvě dálnice spojené
+        function isHighwayConnected(sr, sc, er, ec) {
+            if(sr === er && sc === ec) return false;
+            let visited = new Set();
+            let queue = [{r: sr, c: sc}];
+            visited.add(`${sr},${sc}`);
+
+            while(queue.length > 0) {
+                let curr = queue.shift();
+                if(curr.r === er && curr.c === ec) return true;
+
+                for(let dr=-1; dr<=1; dr++) {
+                    for(let dc=-1; dc<=1; dc++) {
+                        let nr = curr.r + dr, nc = curr.c + dc;
+                        if(isAdjacent(curr.r, curr.c, nr, nc)) {
+                            let id = `${nr},${nc}`;
+                            if(!visited.has(id)) {
+                                let hex = document.getElementById(`hex-${nr}-${nc}`);
+                                if(hex && hex.classList.contains('highway')) {
+                                    visited.add(id);
+                                    queue.push({r: nr, c: nc});
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
         function hasLineOfSight(r1, c1, r2, c2) {
             let clearPath = true;
             for(let r=0; r<rows; r++) {
@@ -281,14 +309,17 @@
         }
 
         function buildL2() {
-            if (gameState.material >= 20) { gameState.material -= 20; gameState.hatcheryLvl = 2; showMessage("Líheň 2 postavená! Odemčeni 🦂/🐝", "#f1c40f"); updateUI(); }
+            if (gameState.material >= 20) { 
+                gameState.material -= 20; gameState.hatcheryLvl = 2; 
+                showMessage("Líheň 2 postavená! Můžeš stavět dálnice a líhnout Elitu.", "#f1c40f"); 
+                updateWorkerMenu(); updateUI(); 
+            }
         }
         function buildL3() {
             if (gameState.material >= 30 && gameState.bio >= 5) { 
                 gameState.material -= 30; gameState.bio -= 5; gameState.hatcheryLvl = 3; 
-                showMessage("Líheň 3 postavená! Dělníci mohou stavět pokročilé budovy.", "#f1c40f"); 
-                updateWorkerMenu();
-                updateUI(); 
+                showMessage("Líheň 3 postavená! Odemčeny pokročilé pevnosti a pasti.", "#f1c40f"); 
+                updateWorkerMenu(); updateUI(); 
             }
         }
 
@@ -468,12 +499,19 @@
                             let isFormicaRanged = (gameState.chosenFaction === 'formica' && type === 'elite' && (enemy || isEnemyNest || wall) && hexDistance <= 2);
                             let isFlyerJump = (gameState.chosenFaction === 'flyers' && type === 'elite' && hexDistance === 2);
                             let isNormalMove = isAdjacent(sr, sc, r, c);
+                            
+                            // Výpočet, zda se mravenec přesunuje v rámci dálnice
+                            let isHighwayMove = false;
+                            if (isHighway && selectedHex.classList.contains('highway')) {
+                                isHighwayMove = isHighwayConnected(sr, sc, r, c);
+                            }
+
                             let workerMode = document.getElementById('worker-mode') ? document.getElementById('worker-mode').value : 'move';
 
                             if (this === selectedHex) { this.classList.remove('selected'); selectedHex = null; }
                             else if (myUnit) { selectedHex.classList.remove('selected'); this.classList.add('selected'); selectedHex = this; }
                             
-                            // --- STAVĚCÍ REŽIM DĚLNÍKA ---
+                            // --- STAVĚCÍ REŽIM DĚLNÍKA (pouze sousední políčka) ---
                             else if (type === 'worker' && workerMode !== 'move' && isNormalMove) {
                                 if (gameState.feromons < 1) { showMessage("Nemáš FB na stavbu!", "#e74c3c"); return; }
                                 let costMat = 0; let success = false;
@@ -542,10 +580,9 @@
                                 selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= 1; updateUI(); checkWinCondition();
                             }
                             
-                            // 2. NORMÁLNÍ POHYB / BOJ / TĚŽBA
-                            else if (isNormalMove || isFlyerJump) {
-                                let actionCost = isFlyerJump ? 2 : 1;
-                                if (isHighway && selectedHex.classList.contains('highway') && isNormalMove) actionCost = 0;
+                            // 2. NORMÁLNÍ POHYB / BOJ / TĚŽBA / POHYB PO DÁLNICI
+                            else if (isNormalMove || isFlyerJump || isHighwayMove) {
+                                let actionCost = isFlyerJump ? 2 : 1; 
 
                                 if (gameState.feromons < actionCost) { showMessage(`Tato akce stojí ${actionCost} FB!`, "#e74c3c"); return; }
                                 if (isWater && !isBridge) { showMessage("Voda je pro tvé mravence neprůchodná!", "#3498db"); return; }
@@ -719,6 +756,12 @@
                         }
                     }
                     if (best) {
+                        // AI ZNIČÍ DÁLNICI, POKUD NA NI ŠLÁPNE
+                        if (best.classList.contains('highway')) {
+                            best.classList.remove('highway');
+                            showMessage("⚠️ Nepřítel ti překousal Feromonovou dálnici!", "#e74c3c");
+                        }
+
                         let trap = best.querySelector('.trap');
                         if (trap) { trap.remove(); enemyUnit.remove(); showMessage("🕸️ Nepřítel se chytil do pasti!", "#2ecc71"); } 
                         else { best.appendChild(enemyUnit); }
