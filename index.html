@@ -147,6 +147,7 @@
     </div>
 
     <script>
+        // --- STAV HRY ---
         let gameState = {
             chosenFaction: null, playerHP: 10, enemyHP: 10, bio: 5, material: 5, feromons: 10,
             maxPop: 5, hatcheryLvl: 1, nestLocation: { r: 5, c: 0 }, enemyNestLocation: { r: 2, c: 10 },
@@ -306,7 +307,6 @@
             if (getPlayerPop() >= gameState.maxPop) { showMessage("Dosáhl jsi limitu populace! Postav Obytnou komoru.", "#e74c3c"); return; }
 
             let targetHex = document.getElementById(`hex-${gameState.nestLocation.r}-${gameState.nestLocation.c}`);
-            // POKUD je vybraný tunel, líhneme z něj!
             if (selectedHex && selectedHex.classList.contains('tunnel')) targetHex = selectedHex;
             
             if (targetHex.querySelector('.ant, .worker, .elite, .enemy-unit')) { showMessage("Východ je zablokovaný!", "#e74c3c"); return; }
@@ -408,7 +408,7 @@
 
                     hex.addEventListener('click', function() {
                         const r = parseInt(this.dataset.row), c = parseInt(this.dataset.col);
-                        const myUnit = this.querySelector('.ant, .worker, .elite'); // Tvé jednotky (bez enemy)
+                        const myUnit = this.querySelector('.ant, .worker, .elite');
                         const enemy = this.querySelector('.enemy-unit');
                         const isRock = this.classList.contains('rock'), isWater = this.classList.contains('water'), isGrass = this.classList.contains('grass'), isBridge = this.classList.contains('bridge'), isHighway = this.classList.contains('highway'), isNodeBio = this.classList.contains('node-bio'), isNodeMat = this.classList.contains('node-mat');
                         const resBio = this.querySelector('.res-bio'), resMat = this.querySelector('.res-mat'), resCake = this.querySelector('.res-cake'), wall = this.querySelector('.wall'), house = this.querySelector('.house');
@@ -418,14 +418,11 @@
 
                         if (selectedHex) {
                             const sr = parseInt(selectedHex.dataset.row), sc = parseInt(selectedHex.dataset.col);
-                            
-                            // Bezpečně určíme typ vybrané jednotky
                             const unitHtml = selectedHex.querySelector('.ant, .worker, .elite');
-                            const type = unitHtml ? unitHtml.classList[0] : null; 
-                            
+                            const type = unitHtml && !unitHtml.classList.contains('enemy-unit') ? unitHtml.classList[0] : null; 
                             const isCarrying = unitHtml ? (unitHtml.classList.contains('carrying-bio') || unitHtml.classList.contains('carrying-mat')) : false;
-                            const hexDistance = getHexDistance(sr, sc, r, c);
                             
+                            const hexDistance = getHexDistance(sr, sc, r, c);
                             let isFormicaRanged = (type && gameState.chosenFaction === 'formica' && type === 'elite' && (enemy || isEnemyNest || wall) && hexDistance <= 2);
                             let isFlyerJump = (type && gameState.chosenFaction === 'flyers' && type === 'elite' && hexDistance === 2);
                             let isNormalMove = isAdjacent(sr, sc, r, c);
@@ -433,15 +430,17 @@
                             if (isHighway && selectedHex.classList.contains('highway')) isHighwayMove = isHighwayConnected(sr, sc, r, c);
                             let workerMode = document.getElementById('worker-mode') ? document.getElementById('worker-mode').value : 'move';
 
-                            if (this === selectedHex) { this.classList.remove('selected'); selectedHex = null; }
-                            
-                            // Výběr tvého mravence nebo prázdného Tunelu / Hnízda
-                            else if ((myUnit && !myUnit.classList.contains('enemy-unit')) || isTunnel || isMyNest) { 
+                            // 1. Zrušení výběru, pokud kliknu na stejný hex
+                            if (this === selectedHex) { 
+                                this.classList.remove('selected'); selectedHex = null; 
+                            }
+                            // 2. Překliknutí na jinou VLASTNÍ jednotku
+                            else if (myUnit && !myUnit.classList.contains('enemy-unit')) { 
                                 selectedHex.classList.remove('selected'); this.classList.add('selected'); selectedHex = this; 
                             }
-                            
+                            // 3. Akce (pokud máme vybranou naši jednotku)
                             else if (type) {
-                                // 1. STAVĚCÍ REŽIM DĚLNÍKA
+                                // --- STAVĚCÍ REŽIM DĚLNÍKA ---
                                 if (type === 'worker' && workerMode !== 'move' && isNormalMove) {
                                     if (gameState.feromons < 1) { showMessage("Nemáš FB na stavbu!", "#e74c3c"); return; }
                                     let costMat = 0; let success = false; let isTermite = gameState.chosenFaction === 'termiti';
@@ -470,7 +469,7 @@
                                     else { showMessage("Na stavbu nemáš suroviny, nebo to zde nejde!", "#e74c3c"); } return;
                                 }
 
-                                // 2. STŘELBA FORMICA
+                                // --- STŘELBA FORMICA ---
                                 else if (isFormicaRanged) {
                                     if (gameState.feromons < 1) { showMessage("Nemáš FB!", "#e74c3c"); return; }
                                     if (hexDistance === 2 && !hasLineOfSight(sr, sc, r, c)) { showMessage("Výhled blokuje překážka!", "#e74c3c"); return; }
@@ -495,7 +494,7 @@
                                     selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= 1; updateUI(); checkWinCondition();
                                 }
                                 
-                                // 3. NORMÁLNÍ POHYB / BOJ / TĚŽBA
+                                // --- NORMÁLNÍ POHYB / BOJ / TĚŽBA ---
                                 else if (isNormalMove || isFlyerJump || isHighwayMove) {
                                     let actionCost = isFlyerJump ? 2 : 1; if (isHighwayMove && isNormalMove===false) actionCost = 1; 
                                     if (gameState.feromons < actionCost) { showMessage(`Tato akce stojí ${actionCost} FB!`, "#e74c3c"); return; }
@@ -579,14 +578,19 @@
                                         this.innerHTML += selectedHex.innerHTML; selectedHex.innerHTML = '';
                                     }
                                     selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= actionCost; updateUI(); checkWinCondition();
-                                } else {
-                                    // Pokud klikneme jinam s vybraným prázdným tunelem
-                                    selectedHex.classList.remove('selected'); selectedHex = null;
                                 }
-                            } else {
+                            }
+                            // 4. Překliknutí na tunel / hnízdo (pokud byla předtím vybrána prázdná budova a klikli jsme na jinou)
+                            else if (isTunnel || isMyNest) {
+                                selectedHex.classList.remove('selected'); this.classList.add('selected'); selectedHex = this;
+                            }
+                            // 5. Zrušení výběru
+                            else {
                                 selectedHex.classList.remove('selected'); selectedHex = null;
                             }
-                        } else if ((myUnit && !myUnit.classList.contains('enemy-unit')) || isTunnel || isMyNest) { 
+                        } 
+                        // Pokud nemáme nic vybráno, můžeme vybrat vlastní jednotku, Hnízdo nebo Tunel
+                        else if ((myUnit && !myUnit.classList.contains('enemy-unit')) || isTunnel || isMyNest) { 
                             this.classList.add('selected'); selectedHex = this; 
                         }
                     });
