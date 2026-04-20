@@ -53,21 +53,21 @@
         .hex.enemy-nest { background-color: #c0392b; border: 2px solid #000; }
         .hex.selected { filter: brightness(1.3); border: 2px solid #fff; transform: scale(1.1); z-index: 10; }
 
-        .ant, .worker, .elite, .enemy, .res-bio, .res-mat, .res-cake, .wall, .trap {
+        .ant, .worker, .elite, .res-bio, .res-mat, .res-cake, .wall, .trap, .enemy-unit {
             font-size: 30px; display: flex; justify-content: center; align-items: center; height: 100%; pointer-events: none; position: absolute; width: 100%;
         }
         
         .worker-loaded { font-size: 20px; } 
 
-        .enemy { border-radius: 50%; }
-        .enemy-attacker { background-color: rgba(231, 76, 60, 0.4); } 
-        .enemy-defender { background-color: rgba(142, 68, 173, 0.5); border: 2px solid #8e44ad; } 
+        /* Vzhled AI jednotek (Mají červené pozadí, aby šly rozeznat) */
+        .enemy-unit { background-color: rgba(231, 76, 60, 0.4); border-radius: 50%; }
+
         .wall { background-color: #95a5a6; border-radius: 5px; flex-direction: column; font-size: 20px; }
         .trap { opacity: 0.4; }
 
         #ui-panel {
             flex: 1; background-color: #2c3e50; padding: 20px; border-radius: 10px; border: 4px solid #34495e;
-            margin-left: 20px; max-width: 380px; height: fit-content; overflow-y: auto; max-height: 90vh;
+            margin-left: 20px; max-width: 400px; height: fit-content; overflow-y: auto; max-height: 90vh;
         }
         #ui-panel h2 { text-align: center; color: #ecf0f1; border-bottom: 2px solid #7f8c8d; padding-bottom: 10px; margin-top: 0; }
         h3 { border-bottom: 1px dashed #7f8c8d; padding-bottom: 5px; margin-top: 15px; color: #bdc3c7; font-size: 16px; }
@@ -75,6 +75,8 @@
         .room-box { background: #34495e; padding: 12px; border-radius: 8px; margin-bottom: 10px; line-height: 1.5; border-left: 4px solid #7f8c8d; }
         .room-box.queen { border-left-color: #e74c3c; }
         .room-box.storage { border-left-color: #2ecc71; }
+        .room-box.ai-stats { border-left-color: #9b59b6; background: #2c3e50; border: 1px dashed #9b59b6; }
+        
         .faction-box { border: 1px dashed #f1c40f; color: #f1c40f; font-size: 13px; background: rgba(241, 196, 15, 0.1); }
         .hp-bar { font-weight: bold; color: #e74c3c; } .hp-bar.player { color: #2ecc71; }
 
@@ -91,18 +93,10 @@
         <h1>Válka Mravenců</h1>
         <p>Vyber si svou frakci a připrav se na bitvu!</p>
         <div class="faction-cards">
-            <div class="card blacks" onclick="startGame('blacks')">
-                <h2>Blacks (Roj)</h2><p>Tví mravenci získávají bonus +1 k hodu kostkou v boji za každého dalšího tvého mravence u cíle.</p>
-            </div>
-            <div class="card termiti" onclick="startGame('termiti')">
-                <h2>Termiti (Mistři)</h2><p>Všechny stavby tě stojí o polovinu méně. Z velkých těžišť dřeva nosíš +10 Mat. Dělník těží kámen.</p>
-            </div>
-            <div class="card formica" onclick="startGame('formica')">
-                <h2>Formica (Plivači)</h2><p>Tví Elitní vojáci střílí kyselinu až na vzdálenost 2 hexů. Při neúspěšném hodu v boji nezemřou.</p>
-            </div>
-            <div class="card flyers" onclick="startGame('flyers')">
-                <h2>Flyers (Létavci)</h2><p>Okřídlení vojáci 🐝 mohou za 2 FB přeskočit překážky i mravence na vzdálenost 2 hexů.</p>
-            </div>
+            <div class="card blacks" onclick="startGame('blacks')"><h2>Blacks (Roj)</h2><p>V boji +1 k hodu za každého tvého mravence u cíle.</p></div>
+            <div class="card termiti" onclick="startGame('termiti')"><h2>Termiti (Mistři)</h2><p>Stavby o 50% levnější. Dřevo +10 Mat. Dělník těží kámen.</p></div>
+            <div class="card formica" onclick="startGame('formica')"><h2>Formica (Plivači)</h2><p>Elitní voják střílí na 2 hexy. Při neúspěchu nezemře.</p></div>
+            <div class="card flyers" onclick="startGame('flyers')"><h2>Flyers (Létavci)</h2><p>Okřídlení vojáci 🐝 přeskočí překážky na 2 hexy.</p></div>
         </div>
     </div>
 
@@ -114,18 +108,22 @@
 
         <div id="ui-panel">
             <h2 id="faction-name">Podzemí: ...</h2>
-            <div class="room-box faction-box" id="faction-ability"></div>
-
-            <div class="room-box queen">
-                <h3>👑 Komnata Královny</h3>
-                <strong>Naše hnízdo (HP):</strong> <span id="player-hp" class="hp-bar player">10</span>/10<br>
-                <strong>Cizí hnízdo (HP):</strong> <span id="enemy-hp" class="hp-bar">10</span>/10<br>
-                <strong>Feromonové body:</strong> <span id="fb-count" style="color: #3498db; font-weight:bold;">0</span>
-            </div>
-
-            <div class="room-box storage">
-                <h3>🍃 Sklady Surovin</h3>
-                <strong>Bio (Jídlo):</strong> <span id="bio-count">0</span> | <strong>Materiál:</strong> <span id="mat-count">0</span>
+            
+            <div style="display:flex; gap:10px;">
+                <div class="room-box queen" style="flex:1;">
+                    <h3 style="margin-top:0;">👑 Naše Hnízdo</h3>
+                    <strong>HP:</strong> <span id="player-hp" class="hp-bar player">10</span>/10<br>
+                    <strong>Bio:</strong> <span id="bio-count">0</span><br>
+                    <strong>Mat:</strong> <span id="mat-count">0</span><br>
+                    <strong>FB:</strong> <span id="fb-count" style="color: #3498db; font-weight:bold;">0</span>
+                </div>
+                <div class="room-box ai-stats" style="flex:1;">
+                    <h3 style="margin-top:0;">🔴 AI Soupeř</h3>
+                    <strong>HP:</strong> <span id="enemy-hp" class="hp-bar">10</span>/10<br>
+                    <strong>Bio:</strong> <span id="ai-bio">0</span><br>
+                    <strong>Mat:</strong> <span id="ai-mat">0</span><br>
+                    <strong>Líheň:</strong> Úroveň <span id="ai-lvl">1</span>
+                </div>
             </div>
 
             <div class="room-box">
@@ -136,14 +134,12 @@
                 
                 <div id="build-menu" style="display:none; margin-bottom:10px;">
                     <label style="color:#f1c40f; font-weight:bold;">👷 Dělník (Akce):</label>
-                    <select id="worker-mode">
-                        </select>
+                    <select id="worker-mode"></select>
                 </div>
 
                 <button id="btn-hatch-worker" onclick="hatchUnit('worker')">Líhnout Dělníka 👷 (1 Bio)</button>
                 <button id="btn-hatch-basic" onclick="hatchUnit('basic')">Líhnout Vojáka 🐜 (1 Bio)</button>
                 <button id="btn-hatch-elite" onclick="hatchUnit('elite')" disabled>Líhnout Elitu 🦂 (3 Bio)</button>
-                <p style="font-size:11px; color:#bdc3c7; text-align:center;"><em>(Pro líhnutí v Tunelu nebo vyložení nákladu klikni na Tunel/Hnízdo)</em></p>
             </div>
 
             <button id="btn-end-turn" onclick="nextTurn()" style="background-color: #3498db; font-size: 15px; padding: 12px;">Ukončit tah (+5 FB)</button>
@@ -152,10 +148,15 @@
     </div>
 
     <script>
+        // --- STAV HRY (HRÁČ I AI) ---
         let gameState = {
             chosenFaction: null, playerHP: 10, enemyHP: 10, bio: 5, material: 5, feromons: 10,
             hatcheryLvl: 1, nestLocation: { r: 5, c: 0 }, enemyNestLocation: { r: 2, c: 10 },
             tunnels: [] 
+        };
+
+        let aiState = {
+            bio: 5, material: 5, feromons: 10, hatcheryLvl: 1
         };
 
         let selectedHex = null;
@@ -165,13 +166,9 @@
         function updateWorkerMenu() {
             let isTermite = gameState.chosenFaction === 'termiti';
             let currentSelection = document.getElementById('worker-mode') ? document.getElementById('worker-mode').value : 'move';
-            
             let html = `<option value="move">Pohyb / Těžba surovin</option>`;
             
-            if (gameState.hatcheryLvl >= 2) {
-                html += `<option value="highway">🛣️ Feromonová dálnice (${isTermite ? 1 : 2} Mat)</option>`;
-            }
-            
+            if (gameState.hatcheryLvl >= 2) html += `<option value="highway">🛣️ Feromonová dálnice (${isTermite ? 1 : 2} Mat)</option>`;
             if (gameState.hatcheryLvl >= 3) {
                 html += `<option value="wall">🧱 Obranný val (${isTermite ? 4 : 8} Mat)</option>
                          <option value="tunnel">🕳️ Tunel (Dálka ${isTermite ? '+2' : '+5'} Mat)</option>
@@ -179,11 +176,8 @@
                          <option value="bridge">🌉 Most z listí přes vodu (${isTermite ? 8 : 15} Mat)</option>
                          <option value="trap">🕸️ Pavučinová past (${isTermite ? 2 : 3} Mat)</option>`;
             }
-            
             document.getElementById('worker-mode').innerHTML = html;
-            if (html.includes(`value="${currentSelection}"`)) {
-                document.getElementById('worker-mode').value = currentSelection;
-            }
+            if (html.includes(`value="${currentSelection}"`)) document.getElementById('worker-mode').value = currentSelection;
         }
 
         function startGame(faction) {
@@ -191,23 +185,17 @@
             document.getElementById('start-screen').style.display = 'none';
             document.getElementById('game-container').style.display = 'flex';
             
-            if (faction === 'blacks') {
-                document.getElementById('faction-name').innerText = "Podzemí: Blacks";
-                document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Rojení.</strong><br>V boji získáš +1 k hodu za každého dalšího tvého mravence u cíle.";
-            } else if (faction === 'termiti') {
-                document.getElementById('faction-name').innerText = "Podzemí: Termiti";
-                document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Mistři stavitelé.</strong><br>Stavby zlevněny o 50%. Těžba dřeva +10 Mat. Dělník těží kámen.";
-            } else if (faction === 'formica') {
-                document.getElementById('faction-name').innerText = "Podzemí: Formica";
-                document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Střelba kyseliny.</strong><br>Elitní voják střílí až na 2 hexy. Při neúspěchu nezemře.";
-            } else if (faction === 'flyers') {
+            if (faction === 'blacks') document.getElementById('faction-name').innerText = "Podzemí: Blacks";
+            else if (faction === 'termiti') document.getElementById('faction-name').innerText = "Podzemí: Termiti";
+            else if (faction === 'formica') document.getElementById('faction-name').innerText = "Podzemí: Formica";
+            else if (faction === 'flyers') {
                 document.getElementById('faction-name').innerText = "Podzemí: Létavci";
-                document.getElementById('faction-ability').innerHTML = "<strong>Schopnost: Vzdušná převaha.</strong><br>Okřídlení vojáci 🐝 mohou za 2 FB přeskočit překážky na vzdálenost 2 hexů.";
                 document.getElementById('btn-hatch-elite').innerText = 'Líhnout Elitu 🐝 (3 Bio)';
             }
-
-            updateWorkerMenu();
-            createBoard(); generateTerrain(); spawnPermanentNodes(); spawnResources(6); spawnEnemy(); updateUI();
+            updateWorkerMenu(); createBoard(); generateTerrain(); spawnPermanentNodes(); spawnResources(6); 
+            // AI začne s 1 dělníkem a 1 vojákem
+            document.getElementById(`hex-${aiState.enemyNestLocation?.r || 2}-${aiState.enemyNestLocation?.c || 10}`).innerHTML = `<div class="enemy-unit worker">👷</div>`;
+            updateUI();
         }
 
         function updateUI() {
@@ -215,18 +203,18 @@
             document.getElementById('mat-count').innerText = gameState.material;
             document.getElementById('fb-count').innerText = gameState.feromons;
             document.getElementById('player-hp').innerText = gameState.playerHP;
+            
+            // AI UI
             document.getElementById('enemy-hp').innerText = gameState.enemyHP;
+            document.getElementById('ai-bio').innerText = aiState.bio;
+            document.getElementById('ai-mat').innerText = aiState.material;
+            document.getElementById('ai-lvl').innerText = aiState.hatcheryLvl;
             
             document.getElementById('btn-build-l2').disabled = (gameState.material < 20 || gameState.hatcheryLvl >= 2);
-            if(gameState.hatcheryLvl >= 2) {
-                document.getElementById('btn-build-l2').innerText = "Líheň 2 postavena ✅";
-                document.getElementById('build-menu').style.display = 'block'; 
-            }
+            if(gameState.hatcheryLvl >= 2) { document.getElementById('btn-build-l2').innerText = "Líheň 2 postavena ✅"; document.getElementById('build-menu').style.display = 'block'; }
             
             document.getElementById('btn-build-l3').disabled = (gameState.material < 30 || gameState.bio < 5 || gameState.hatcheryLvl >= 3);
-            if(gameState.hatcheryLvl >= 3) {
-                document.getElementById('btn-build-l3').innerText = "Líheň 3 postavena ✅";
-            }
+            if(gameState.hatcheryLvl >= 3) document.getElementById('btn-build-l3').innerText = "Líheň 3 postavena ✅";
             
             document.getElementById('btn-hatch-basic').disabled = (gameState.bio < 1 || gameState.feromons < 1);
             document.getElementById('btn-hatch-worker').disabled = (gameState.bio < 1 || gameState.feromons < 1);
@@ -244,33 +232,23 @@
             if (dr === 0 && dc === 1) return true; 
             if (dr === 1) {
                 const isShifted = (r1 % 2 !== 0);
-                if (isShifted) { if (c2 === c1 || c2 === c1 + 1) return true; }
-                else { if (c2 === c1 || c2 === c1 - 1) return true; }
+                if (isShifted) return (c2 === c1 || c2 === c1 + 1);
+                else return (c2 === c1 || c2 === c1 - 1);
             }
             return false;
         }
-
-        function offsetToCube(row, col) {
-            var x = col - (row - (row & 1)) / 2, z = row, y = -x - z;
-            return {x: x, y: y, z: z};
-        }
+        function offsetToCube(row, col) { var x = col - (row - (row & 1)) / 2, z = row, y = -x - z; return {x: x, y: y, z: z}; }
         function getHexDistance(r1, c1, r2, c2) {
-            var a = offsetToCube(r1, c1), b = offsetToCube(r2, c2);
-            return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y), Math.abs(a.z - b.z));
+            var a = offsetToCube(r1, c1), b = offsetToCube(r2, c2); return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y), Math.abs(a.z - b.z));
         }
         function getDistance(r1, c1, r2, c2) { return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(c1 - c2, 2)); }
 
-        // BFS algoritmus pro kontrolu, zda jsou dvě dálnice spojené
         function isHighwayConnected(sr, sc, er, ec) {
             if(sr === er && sc === ec) return false;
-            let visited = new Set();
-            let queue = [{r: sr, c: sc}];
-            visited.add(`${sr},${sc}`);
-
+            let visited = new Set(); let queue = [{r: sr, c: sc}]; visited.add(`${sr},${sc}`);
             while(queue.length > 0) {
                 let curr = queue.shift();
                 if(curr.r === er && curr.c === ec) return true;
-
                 for(let dr=-1; dr<=1; dr++) {
                     for(let dc=-1; dc<=1; dc++) {
                         let nr = curr.r + dr, nc = curr.c + dc;
@@ -278,16 +256,12 @@
                             let id = `${nr},${nc}`;
                             if(!visited.has(id)) {
                                 let hex = document.getElementById(`hex-${nr}-${nc}`);
-                                if(hex && hex.classList.contains('highway')) {
-                                    visited.add(id);
-                                    queue.push({r: nr, c: nc});
-                                }
+                                if(hex && hex.classList.contains('highway')) { visited.add(id); queue.push({r: nr, c: nc}); }
                             }
                         }
                     }
                 }
-            }
-            return false;
+            } return false;
         }
 
         function hasLineOfSight(r1, c1, r2, c2) {
@@ -299,35 +273,26 @@
                         if (hex && (hex.classList.contains('rock') || hex.querySelector('.wall'))) clearPath = false;
                     }
                 }
-            }
-            return clearPath;
+            } return clearPath;
         }
 
         function checkWinCondition() {
-            if (gameState.enemyHP <= 0) { setTimeout(() => { alert("🏆 VÍTĚZSTVÍ! Nepřátelské hnízdo zničeno!"); location.reload(); }, 100); } 
-            else if (gameState.playerHP <= 0) { setTimeout(() => { alert("💀 PROHRA! Tvé hnízdo podlehlo."); location.reload(); }, 100); }
+            if (gameState.enemyHP <= 0) { setTimeout(() => { alert("🏆 VÍTĚZSTVÍ! AI Hnízdo zničeno!"); location.reload(); }, 100); } 
+            else if (gameState.playerHP <= 0) { setTimeout(() => { alert("💀 PROHRA! Tvé hnízdo podlehlo AI."); location.reload(); }, 100); }
         }
 
         function buildL2() {
-            if (gameState.material >= 20) { 
-                gameState.material -= 20; gameState.hatcheryLvl = 2; 
-                showMessage("Líheň 2 postavená! Můžeš stavět dálnice a líhnout Elitu.", "#f1c40f"); 
-                updateWorkerMenu(); updateUI(); 
-            }
+            if (gameState.material >= 20) { gameState.material -= 20; gameState.hatcheryLvl = 2; showMessage("Líheň 2 postavená!", "#f1c40f"); updateWorkerMenu(); updateUI(); }
         }
         function buildL3() {
-            if (gameState.material >= 30 && gameState.bio >= 5) { 
-                gameState.material -= 30; gameState.bio -= 5; gameState.hatcheryLvl = 3; 
-                showMessage("Líheň 3 postavená! Odemčeny pokročilé pevnosti a pasti.", "#f1c40f"); 
-                updateWorkerMenu(); updateUI(); 
-            }
+            if (gameState.material >= 30 && gameState.bio >= 5) { gameState.material -= 30; gameState.bio -= 5; gameState.hatcheryLvl = 3; showMessage("Líheň 3 postavená!", "#f1c40f"); updateWorkerMenu(); updateUI(); }
         }
 
         function hatchUnit(type) {
             let targetHex = document.getElementById(`hex-${gameState.nestLocation.r}-${gameState.nestLocation.c}`);
             if (selectedHex && selectedHex.classList.contains('tunnel')) targetHex = selectedHex;
             
-            if (targetHex.querySelector('.ant, .worker, .elite')) { showMessage("Východ je zablokovaný!", "#e74c3c"); return; }
+            if (targetHex.querySelector('.ant, .worker, .elite, .enemy-unit')) { showMessage("Východ je zablokovaný!", "#e74c3c"); return; }
             
             let cost = (type === 'elite') ? 3 : 1;
             if (gameState.bio >= cost && gameState.feromons >= 1) {
@@ -345,42 +310,32 @@
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < columns; c++) {
                     const hex = document.getElementById(`hex-${r}-${c}`);
-                    if (getDistance(r, c, gameState.nestLocation.r, gameState.nestLocation.c) <= 1.5 || 
-                        getDistance(r, c, gameState.enemyNestLocation.r, gameState.enemyNestLocation.c) <= 1.5) continue; 
+                    if (getDistance(r, c, gameState.nestLocation.r, gameState.nestLocation.c) <= 1.5 || getDistance(r, c, gameState.enemyNestLocation.r, gameState.enemyNestLocation.c) <= 1.5) continue; 
                     const rand = Math.random();
                     if (rand < 0.15) hex.classList.add('grass'); 
-                    else if (rand < 0.25) { hex.classList.add('water'); }
-                    else if (rand < 0.35) { hex.classList.add('rock'); }
+                    else if (rand < 0.25) hex.classList.add('water'); 
+                    else if (rand < 0.35) hex.classList.add('rock'); 
                 }
             }
         }
 
         function spawnPermanentNodes() {
-            let validHexes = [];
-            let centerR = rows / 2;
-            let centerC = columns / 2;
-
+            let validHexes = []; let centerR = rows / 2; let centerC = columns / 2;
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < columns; c++) {
                     let hex = document.getElementById(`hex-${r}-${c}`);
                     if (hex && !hex.classList.contains('water') && !hex.classList.contains('rock') && !hex.classList.contains('nest') && !hex.classList.contains('enemy-nest')) {
-                        let distToCenter = getDistance(r, c, centerR, centerC);
-                        validHexes.push({r: r, c: c, hex: hex, dist: distToCenter});
+                        validHexes.push({r: r, c: c, hex: hex, dist: getDistance(r, c, centerR, centerC)});
                     }
                 }
             }
-
             validHexes.sort((a, b) => a.dist - b.dist);
             let centerCandidates = validHexes.slice(0, 8);
-            
             let bioIndex = Math.floor(Math.random() * centerCandidates.length);
-            let bioHex = centerCandidates[bioIndex].hex;
-            bioHex.className = 'hex node-bio';
+            centerCandidates[bioIndex].hex.className = 'hex node-bio';
             centerCandidates.splice(bioIndex, 1); 
-
             let matIndex = Math.floor(Math.random() * centerCandidates.length);
-            let matHex = centerCandidates[matIndex].hex;
-            matHex.className = 'hex node-mat';
+            centerCandidates[matIndex].hex.className = 'hex node-mat';
         }
 
         function spawnResources(amount) {
@@ -391,39 +346,8 @@
                 if (hex && hex.innerHTML === '' && !hex.classList.contains('rock') && !hex.classList.contains('water') && !hex.classList.contains('nest') && !hex.classList.contains('enemy-nest') && !hex.classList.contains('node-bio') && !hex.classList.contains('node-mat')) {
                     if (Math.random() > 0.3) hex.innerHTML = '<div class="res-bio">🌱</div>'; else hex.innerHTML = '<div class="res-mat">🪹</div>';
                     spawned++;
-                }
-                attempts++;
+                } attempts++;
             }
-        }
-
-        function spawnEnemy() {
-            const r = gameState.enemyNestLocation.r, c = gameState.enemyNestLocation.c;
-            const nest = document.getElementById(`hex-${r}-${c}`);
-            const isDefender = Math.random() < 0.3;
-            const enemyClass = isDefender ? 'enemy enemy-defender' : 'enemy enemy-attacker';
-            const enemyIcon = isDefender ? '🪲' : '🐜';
-            const htmlString = `<div class="${enemyClass}">${enemyIcon}</div>`;
-
-            if (!nest.querySelector('.enemy')) { nest.innerHTML += htmlString; } 
-            else {
-                for(let dr=-1; dr<=1; dr++) {
-                    for(let dc=-1; dc<=1; dc++) {
-                        const nr = r+dr, nc = c+dc;
-                        if(nr>=0 && nr<rows && nc>=0 && nc<columns && isAdjacent(r,c,nr,nc)) {
-                            const h = document.getElementById(`hex-${nr}-${nc}`);
-                            if(h && !h.querySelector('.enemy') && !h.classList.contains('rock') && !h.classList.contains('water') && !h.classList.contains('node-bio') && !h.classList.contains('node-mat')) { h.innerHTML += htmlString; return; }
-                        }
-                    }
-                }
-            }
-        }
-
-        function countAlliesAround(row, col) {
-            let allies = 0;
-            document.querySelectorAll('.hex').forEach(hex => {
-                if (hex.querySelector('.ant, .worker, .elite') && isAdjacent(row, col, parseInt(hex.dataset.row), parseInt(hex.dataset.col))) allies++;
-            });
-            return allies;
         }
 
         function triggerRandomEvent() {
@@ -434,60 +358,42 @@
                     document.querySelectorAll('.res-bio, .res-mat, .res-cake').forEach(res => res.remove());
                     showMessage("🌧️ UDÁLOST: Začalo pršet! Drobné suroviny spláchnuty.", "#3498db", 6000);
                 } else if (eventType === 1) {
-                    const allAnts = Array.from(document.querySelectorAll('.ant, .worker, .elite, .enemy'));
+                    const allAnts = Array.from(document.querySelectorAll('.ant, .worker, .elite, .enemy-unit'));
                     if (allAnts.length > 0) {
                         const victim = allAnts[Math.floor(Math.random() * allAnts.length)];
                         if (selectedHex === victim.parentElement) { selectedHex.classList.remove('selected'); selectedHex = null; }
-                        victim.remove();
-                        showMessage("🐦 UDÁLOST: Pták sezobnul mravence!", "#e74c3c", 6000);
+                        victim.remove(); showMessage("🐦 UDÁLOST: Pták sezobnul mravence!", "#e74c3c", 6000);
                     }
                 } else if (eventType === 2) {
                     let spawned = 0;
                     while (spawned < 3) {
                         const r = Math.floor(Math.random() * rows), c = Math.floor(Math.random() * columns);
                         const hex = document.getElementById(`hex-${r}-${c}`);
-                        if (hex && hex.innerHTML === '' && !hex.classList.contains('rock') && !hex.classList.contains('water') && !hex.classList.contains('nest')) {
+                        if (hex && hex.innerHTML === '' && !hex.classList.contains('rock') && !hex.classList.contains('water') && !hex.classList.contains('nest') && !hex.classList.contains('enemy-nest')) {
                             hex.innerHTML = '<div class="res-cake">🍰</div>'; spawned++;
                         }
-                    }
-                    showMessage("🍰 UDÁLOST: Piknik! Na mapu spadly dorty.", "#9b59b6", 6000);
+                    } showMessage("🍰 UDÁLOST: Piknik! Na mapu spadly dorty.", "#9b59b6", 6000);
                 }
             }
         }
 
+        // --- INTERAKCE HRÁČE ---
         function createBoard() {
             boardElement.innerHTML = "";
             for (let r = 0; r < rows; r++) {
-                const rowElement = document.createElement('div');
-                rowElement.className = 'hex-row';
+                const rowElement = document.createElement('div'); rowElement.className = 'hex-row';
                 for (let c = 0; c < columns; c++) {
-                    const hex = document.createElement('div');
-                    hex.className = 'hex'; hex.id = `hex-${r}-${c}`;
-                    hex.dataset.row = r; hex.dataset.col = c;
+                    const hex = document.createElement('div'); hex.className = 'hex'; hex.id = `hex-${r}-${c}`; hex.dataset.row = r; hex.dataset.col = c;
                     if (r === gameState.nestLocation.r && c === gameState.nestLocation.c) hex.classList.add('nest');
                     if (r === gameState.enemyNestLocation.r && c === gameState.enemyNestLocation.c) hex.classList.add('enemy-nest');
 
                     hex.addEventListener('click', function() {
                         const r = parseInt(this.dataset.row), c = parseInt(this.dataset.col);
                         const myUnit = this.querySelector('.ant, .worker, .elite');
-                        const enemy = this.querySelector('.enemy');
-                        const isDefender = this.querySelector('.enemy-defender') !== null;
-                        
-                        const isRock = this.classList.contains('rock');
-                        const isWater = this.classList.contains('water');
-                        const isGrass = this.classList.contains('grass');
-                        const isBridge = this.classList.contains('bridge');
-                        const isHighway = this.classList.contains('highway');
-                        const isNodeBio = this.classList.contains('node-bio');
-                        const isNodeMat = this.classList.contains('node-mat');
-                        
-                        const resBio = this.querySelector('.res-bio');
-                        const resMat = this.querySelector('.res-mat');
-                        const resCake = this.querySelector('.res-cake');
-                        const wall = this.querySelector('.wall');
-                        const isEnemyNest = this.classList.contains('enemy-nest');
-                        const isMyNest = this.classList.contains('nest');
-                        const isTunnel = this.classList.contains('tunnel');
+                        const enemy = this.querySelector('.enemy-unit');
+                        const isRock = this.classList.contains('rock'), isWater = this.classList.contains('water'), isGrass = this.classList.contains('grass'), isBridge = this.classList.contains('bridge'), isHighway = this.classList.contains('highway'), isNodeBio = this.classList.contains('node-bio'), isNodeMat = this.classList.contains('node-mat');
+                        const resBio = this.querySelector('.res-bio'), resMat = this.querySelector('.res-mat'), resCake = this.querySelector('.res-cake'), wall = this.querySelector('.wall');
+                        const isEnemyNest = this.classList.contains('enemy-nest'), isMyNest = this.classList.contains('nest'), isTunnel = this.classList.contains('tunnel');
 
                         if (selectedHex) {
                             const sr = parseInt(selectedHex.dataset.row), sc = parseInt(selectedHex.dataset.col);
@@ -499,176 +405,116 @@
                             let isFormicaRanged = (gameState.chosenFaction === 'formica' && type === 'elite' && (enemy || isEnemyNest || wall) && hexDistance <= 2);
                             let isFlyerJump = (gameState.chosenFaction === 'flyers' && type === 'elite' && hexDistance === 2);
                             let isNormalMove = isAdjacent(sr, sc, r, c);
-                            
-                            // Výpočet, zda se mravenec přesunuje v rámci dálnice
                             let isHighwayMove = false;
-                            if (isHighway && selectedHex.classList.contains('highway')) {
-                                isHighwayMove = isHighwayConnected(sr, sc, r, c);
-                            }
-
+                            if (isHighway && selectedHex.classList.contains('highway')) isHighwayMove = isHighwayConnected(sr, sc, r, c);
                             let workerMode = document.getElementById('worker-mode') ? document.getElementById('worker-mode').value : 'move';
 
                             if (this === selectedHex) { this.classList.remove('selected'); selectedHex = null; }
                             else if (myUnit) { selectedHex.classList.remove('selected'); this.classList.add('selected'); selectedHex = this; }
                             
-                            // --- STAVĚCÍ REŽIM DĚLNÍKA (pouze sousední políčka) ---
+                            // 1. STAVĚCÍ REŽIM DĚLNÍKA
                             else if (type === 'worker' && workerMode !== 'move' && isNormalMove) {
                                 if (gameState.feromons < 1) { showMessage("Nemáš FB na stavbu!", "#e74c3c"); return; }
-                                let costMat = 0; let success = false;
-                                let isTermite = gameState.chosenFaction === 'termiti';
+                                let costMat = 0; let success = false; let isTermite = gameState.chosenFaction === 'termiti';
 
                                 if (workerMode === 'wall' && !enemy && !isRock && !isWater && !isMyNest && !isEnemyNest && !wall && !isNodeBio && !isNodeMat) {
-                                    costMat = isTermite ? 4 : 8;
-                                    if (gameState.material >= costMat) { this.innerHTML += '<div class="wall" data-hp="4">🧱<span style="font-size:12px; color:white;">4HP</span></div>'; success = true; }
+                                    costMat = isTermite ? 4 : 8; if (gameState.material >= costMat) { this.innerHTML += '<div class="wall" data-hp="4">🧱<span style="font-size:12px; color:white;">4HP</span></div>'; success = true; }
                                 } else if (workerMode === 'tunnel' && !enemy && !isRock && !isWater && !isMyNest && !isEnemyNest && !wall && !isTunnel && !isNodeBio && !isNodeMat) {
                                     let distCost = Math.floor(getDistance(r, c, gameState.nestLocation.r, gameState.nestLocation.c));
                                     costMat = isTermite ? Math.ceil((5 + distCost)/2) : (5 + distCost);
                                     if (gameState.material >= costMat) { this.classList.add('tunnel'); gameState.tunnels.push({r, c}); success = true; }
                                 } else if (workerMode === 'trench' && !isEnemyNest && !isMyNest && !isRock && !isWater && !wall && !isNodeBio && !isNodeMat) {
                                     let nearWater = false;
-                                    for(let dr=-1;dr<=1;dr++){ for(let dc=-1;dc<=1;dc++){
-                                        if (isAdjacent(r,c,r+dr,c+dc)) { let h = document.getElementById(`hex-${r+dr}-${c+dc}`); if (h && h.classList.contains('water')) nearWater = true; }
-                                    }}
-                                    if (nearWater) {
-                                        costMat = isTermite ? 5 : 10;
-                                        if (gameState.material >= costMat) { this.className = 'hex water'; this.style.cursor = 'not-allowed'; this.innerHTML = ''; success = true; }
-                                    } else { showMessage("Příkop musí navazovat na existující Vodu!", "#e74c3c"); return; }
+                                    for(let dr=-1;dr<=1;dr++){ for(let dc=-1;dc<=1;dc++){ if (isAdjacent(r,c,r+dr,c+dc)) { let h = document.getElementById(`hex-${r+dr}-${c+dc}`); if (h && h.classList.contains('water')) nearWater = true; } }}
+                                    if (nearWater) { costMat = isTermite ? 5 : 10; if (gameState.material >= costMat) { this.className = 'hex water'; this.style.cursor = 'not-allowed'; this.innerHTML = ''; success = true; } } else { showMessage("Příkop musí navazovat na existující Vodu!", "#e74c3c"); return; }
                                 } else if (workerMode === 'bridge' && isWater) {
-                                    costMat = isTermite ? 8 : 15;
-                                    if (gameState.material >= costMat) { this.classList.remove('water'); this.classList.add('bridge'); this.style.cursor = 'pointer'; success = true; }
+                                    costMat = isTermite ? 8 : 15; if (gameState.material >= costMat) { this.classList.remove('water'); this.classList.add('bridge'); this.style.cursor = 'pointer'; success = true; }
                                 } else if (workerMode === 'trap' && !enemy && !isRock && !isWater && !isMyNest && !isEnemyNest && !wall && !this.querySelector('.trap')) {
-                                    costMat = isTermite ? 2 : 3;
-                                    if (gameState.material >= costMat) { this.innerHTML += '<div class="trap">🕸️</div>'; success = true; }
+                                    costMat = isTermite ? 2 : 3; if (gameState.material >= costMat) { this.innerHTML += '<div class="trap">🕸️</div>'; success = true; }
                                 } else if (workerMode === 'highway' && !isRock && !isWater && !isHighway) {
-                                    costMat = isTermite ? 1 : 2;
-                                    if (gameState.material >= costMat) { this.classList.add('highway'); success = true; }
+                                    costMat = isTermite ? 1 : 2; if (gameState.material >= costMat) { this.classList.add('highway'); success = true; }
                                 }
-
-                                if (success) {
-                                    gameState.material -= costMat; gameState.feromons -= 1;
-                                    showMessage(`👷 Stavba dokončena! (-${costMat} Mat)`, "#f1c40f");
-                                    selectedHex.classList.remove('selected'); selectedHex = null; updateUI();
-                                } else { showMessage("Na stavbu nemáš suroviny, nebo to zde nejde!", "#e74c3c"); }
-                                return;
+                                if (success) { gameState.material -= costMat; gameState.feromons -= 1; showMessage(`👷 Stavba dokončena! (-${costMat} Mat)`, "#f1c40f"); selectedHex.classList.remove('selected'); selectedHex = null; updateUI(); } 
+                                else { showMessage("Na stavbu nemáš suroviny, nebo to zde nejde!", "#e74c3c"); } return;
                             }
 
-                            // 1. STŘELBA FORMICA
+                            // 2. STŘELBA FORMICA
                             else if (isFormicaRanged) {
                                 if (gameState.feromons < 1) { showMessage("Nemáš FB!", "#e74c3c"); return; }
                                 if (hexDistance === 2 && !hasLineOfSight(sr, sc, r, c)) { showMessage("Výhled blokuje překážka!", "#e74c3c"); return; }
-                                
-                                let roll = Math.floor(Math.random() * 6) + 1;
-                                let penalty = isDefender ? 1 : 0; penalty += isGrass ? 1 : 0;
-                                let penaltyText = (penalty > 0) ? ` (-${penalty})` : "";
-
+                                let roll = Math.floor(Math.random() * 6) + 1; let penalty = isGrass ? 1 : 0; let penaltyText = (penalty > 0) ? ` (-${penalty})` : "";
                                 if (wall) {
-                                    if (roll + 1 >= 4) {
-                                        let hp = parseInt(wall.dataset.hp) - 2;
-                                        if (hp <= 0) { wall.remove(); showMessage("🟢 Val zničen kyselinou!", "#2ecc71"); } 
-                                        else { wall.dataset.hp = hp; wall.innerHTML = `🧱<span style="font-size:12px; color:white;">${hp}HP</span>`; showMessage("🟢 Val poškozen kyselinou!", "#2ecc71"); }
-                                    } else showMessage("Střela na Val minula.", "#e74c3c");
+                                    if (roll + 1 >= 4) { let hp = parseInt(wall.dataset.hp) - 2; if (hp <= 0) { wall.remove(); showMessage("🟢 Val zničen!", "#2ecc71"); } else { wall.dataset.hp = hp; wall.innerHTML = `🧱<span style="font-size:12px; color:white;">${hp}HP</span>`; showMessage("🟢 Val poškozen!", "#2ecc71"); } } 
+                                    else showMessage("Střela na Val minula.", "#e74c3c");
                                 } else if (isEnemyNest && !enemy) {
-                                    if (roll + 1 >= 4) { gameState.enemyHP -= 2; showMessage(`🟢 Kyselinový zásah! Hnízdo ztrácí 2 HP.`, "#2ecc71"); } 
-                                    else { showMessage(`Střela minula.`, "#e74c3c"); }
+                                    if (roll + 1 >= 4) { gameState.enemyHP -= 2; showMessage(`🟢 Zásah hnízda!`, "#2ecc71"); } else { showMessage(`Střela minula.`, "#e74c3c"); }
                                 } else if (enemy) {
-                                    let finalResult = roll + 1 - penalty;
-                                    if (finalResult >= 4) {
-                                        gameState.bio += 1; gameState.material += (isDefender ? 3 : 2);
-                                        showMessage(`🟢 Kyselina: Zásah!`, "#2ecc71"); enemy.remove(); 
-                                    } else { showMessage(`Kyselina: Minul jsi!`, "#e74c3c"); }
+                                    if (roll + 1 - penalty >= 4) { gameState.bio += 1; gameState.material += 2; showMessage(`🟢 Zásah! Nepřítel mrtev.`, "#2ecc71"); enemy.remove(); } 
+                                    else { showMessage(`Kyselina minula!`, "#e74c3c"); }
                                 }
                                 selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= 1; updateUI(); checkWinCondition();
                             }
                             
-                            // 2. NORMÁLNÍ POHYB / BOJ / TĚŽBA / POHYB PO DÁLNICI
+                            // 3. NORMÁLNÍ POHYB / BOJ / TĚŽBA
                             else if (isNormalMove || isFlyerJump || isHighwayMove) {
-                                let actionCost = isFlyerJump ? 2 : 1; 
-
+                                let actionCost = isFlyerJump ? 2 : 1; if (isHighwayMove && isNormalMove===false) actionCost = 1; // Skok po dálnici
                                 if (gameState.feromons < actionCost) { showMessage(`Tato akce stojí ${actionCost} FB!`, "#e74c3c"); return; }
                                 if (isWater && !isBridge) { showMessage("Voda je pro tvé mravence neprůchodná!", "#3498db"); return; }
 
-                                // VYKLÁDKA
                                 if (isMyNest || isTunnel) {
                                     if (isCarrying) {
                                         if (unitHtml.classList.contains('carrying-bio')) { gameState.bio += 5; showMessage("Zásoby uloženy: +5 Bio!", "#2ecc71"); }
-                                        else if (unitHtml.classList.contains('carrying-mat')) { 
-                                            let gain = (gameState.chosenFaction === 'termiti') ? 10 : 5;
-                                            gameState.material += gain; showMessage(`Zásoby uloženy: +${gain} Materiál!`, "#3498db"); 
-                                        }
-                                        selectedHex.innerHTML = '<div class="worker">👷</div>';
-                                        selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= actionCost; updateUI(); return;
-                                    } else {
-                                        showMessage("Zpět do hnízda/tunelu vstoupit nelze, pokud neneseš náklad k vyložení.", "#e74c3c"); return;
-                                    }
+                                        else if (unitHtml.classList.contains('carrying-mat')) { let gain = (gameState.chosenFaction === 'termiti') ? 10 : 5; gameState.material += gain; showMessage(`Zásoby uloženy: +${gain} Materiál!`, "#3498db"); }
+                                        selectedHex.innerHTML = '<div class="worker">👷</div>'; selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= actionCost; updateUI(); return;
+                                    } else { showMessage("Zpět do hnízda vstoupit nelze, pokud neneseš náklad.", "#e74c3c"); return; }
                                 }
 
-                                // NAKLÁDÁNÍ 
                                 if (isNodeBio || isNodeMat) {
                                     if (type === 'worker') {
                                         if (isCarrying) { showMessage("Dělník už má plný batoh!", "#e74c3c"); return; }
                                         if (isNodeBio) selectedHex.innerHTML = '<div class="worker worker-loaded carrying-bio">👷🥩</div>';
                                         if (isNodeMat) selectedHex.innerHTML = '<div class="worker worker-loaded carrying-mat">👷🪵</div>';
-                                        showMessage("Náklad naložen! Odnes ho do Hnízda nebo Tunelu.", "#f1c40f");
-                                        selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= actionCost; updateUI(); return;
-                                    } else {
-                                        showMessage("Z Velkých těžišť umí suroviny odnášet jen Dělník 👷.", "#e74c3c"); return;
-                                    }
+                                        showMessage("Náklad naložen! Odnes ho domů.", "#f1c40f"); selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= actionCost; updateUI(); return;
+                                    } else { showMessage("Suroviny umí nosit jen Dělník.", "#e74c3c"); return; }
                                 }
 
                                 if (isRock) {
                                     if (!(gameState.chosenFaction === 'termiti' && type === 'worker' && workerMode === 'move')) { showMessage("Kámen je neprůchodný!", "#e74c3c"); return; }
-                                    let roll = Math.floor(Math.random() * 6) + 1;
-                                    if (roll >= 4) {
-                                        gameState.material += 5; this.classList.remove('rock'); this.style.cursor = 'pointer';
-                                        showMessage(`⛏️ Kámen zničen! +5 Materiálu.`, "#f1c40f");
-                                    } else showMessage(`Těžba kamene selhala.`, "#e74c3c");
+                                    if (Math.floor(Math.random() * 6) + 1 >= 4) { gameState.material += 5; this.classList.remove('rock'); this.style.cursor = 'pointer'; showMessage(`⛏️ Kámen zničen! +5 Mat.`, "#f1c40f"); } 
+                                    else showMessage(`Těžba kamene selhala.`, "#e74c3c");
                                     selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= actionCost; updateUI(); return;
                                 }
 
                                 if (wall) {
-                                    let roll = Math.floor(Math.random() * 6) + 1;
-                                    let bonus = (gameState.chosenFaction === 'blacks') ? Math.max(0, countAlliesAround(r, c) - 1) : 0;
-                                    if (type === 'elite') bonus += 1;
+                                    let roll = Math.floor(Math.random() * 6) + 1; let bonus = (gameState.chosenFaction === 'blacks') ? Math.max(0, countAlliesAround(r, c) - 1) : 0; if (type === 'elite') bonus += 1;
                                     if (roll + bonus >= 4) {
                                         let hp = parseInt(wall.dataset.hp) - 2;
-                                        if (hp <= 0) { wall.remove(); showMessage("🧱 Val byl zničen útokem!", "#f1c40f"); } 
-                                        else { wall.dataset.hp = hp; wall.innerHTML = `🧱<span style="font-size:12px; color:white;">${hp}HP</span>`; showMessage("🧱 Val byl poškozen!", "#f1c40f"); }
-                                    } else { showMessage("Útok na Val selhal! Mravenec umírá.", "#e74c3c"); selectedHex.innerHTML = ''; }
+                                        if (hp <= 0) { wall.remove(); showMessage("🧱 Val zničen!", "#f1c40f"); } else { wall.dataset.hp = hp; wall.innerHTML = `🧱<span style="font-size:12px; color:white;">${hp}HP</span>`; showMessage("🧱 Val poškozen!", "#f1c40f"); }
+                                    } else { showMessage("Útok selhal! Mravenec umírá.", "#e74c3c"); selectedHex.innerHTML = ''; }
                                     selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= actionCost; updateUI(); return;
                                 }
 
                                 if (isEnemyNest && !enemy) {
-                                    if(type === 'worker') { showMessage("Dělník neumí dobývat hnízdo!", "#e74c3c"); return; }
-                                    let roll = Math.floor(Math.random() * 6) + 1;
-                                    let bonus = (gameState.chosenFaction === 'blacks') ? Math.max(0, countAlliesAround(r, c) - 1) : 0;
-                                    if (type === 'elite') bonus += 1;
-                                    if (roll + bonus >= 4) { gameState.enemyHP -= 2; showMessage(`🔥 Oblehací útok! Hnízdo ztrácí 2 HP.`, "#e67e22"); } 
-                                    else { showMessage(`Útok na hnízdo selhal. Mravenec padl.`, "#e74c3c"); selectedHex.innerHTML = ''; }
+                                    if(type === 'worker') { showMessage("Dělník neumí dobývat!", "#e74c3c"); return; }
+                                    let roll = Math.floor(Math.random() * 6) + 1; let bonus = (gameState.chosenFaction === 'blacks') ? Math.max(0, countAlliesAround(r, c) - 1) : 0; if (type === 'elite') bonus += 1;
+                                    if (roll + bonus >= 4) { gameState.enemyHP -= 2; showMessage(`🔥 Oblehací útok! Hnízdo -2 HP.`, "#e67e22"); } else { showMessage(`Útok selhal.`, "#e74c3c"); selectedHex.innerHTML = ''; }
                                     selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= actionCost; updateUI(); checkWinCondition(); return;
                                 }
 
                                 if (enemy) {
-                                    if(type === 'worker') { showMessage("Dělník s nákladem byl sežrán!", "#e74c3c"); selectedHex.innerHTML = ''; }
+                                    if(type === 'worker') { showMessage("Dělník byl sežrán!", "#e74c3c"); selectedHex.innerHTML = ''; }
                                     else {
-                                        let roll = Math.floor(Math.random() * 6) + 1;
-                                        let bonus = (gameState.chosenFaction === 'blacks') ? Math.max(0, countAlliesAround(r, c) - 1) : 0;
-                                        if (type === 'elite') bonus += 1; 
-                                        let penalty = isDefender ? 1 : 0; if (isGrass) penalty += 1;
-                                        let finalResult = roll + bonus - penalty;
-                                        let penaltyText = (penalty > 0) ? ` (-${penalty} Ochrana)` : "";
-                                        
-                                        if (finalResult >= 4) {
-                                            gameState.bio += 1; gameState.material += (isDefender ? 3 : 2);
-                                            showMessage(`Boj: Zásah! Nepřítel zničen.`, "#f1c40f");
-                                            if(!isEnemyNest) { enemy.remove(); this.innerHTML += selectedHex.innerHTML; selectedHex.innerHTML = ''; }
-                                            else { enemy.remove(); }
-                                        } else { showMessage(`Boj: ${roll} + ${bonus}${penaltyText} = <strong>${finalResult}</strong>. Prohra!`, "#e74c3c"); selectedHex.innerHTML = ''; }
+                                        let roll = Math.floor(Math.random() * 6) + 1; let bonus = (gameState.chosenFaction === 'blacks') ? Math.max(0, countAlliesAround(r, c) - 1) : 0; if (type === 'elite') bonus += 1; 
+                                        let penalty = isGrass ? 1 : 0;
+                                        if (roll + bonus - penalty >= 4) {
+                                            gameState.bio += 1; gameState.material += 2; showMessage(`Boj vyhrán!`, "#f1c40f");
+                                            if(!isEnemyNest) { enemy.remove(); this.innerHTML += selectedHex.innerHTML; selectedHex.innerHTML = ''; } else { enemy.remove(); }
+                                        } else { showMessage(`Prohra v boji!`, "#e74c3c"); selectedHex.innerHTML = ''; }
                                     }
                                 } else {
-                                    if (resBio) { gameState.bio += (type === 'worker') ? 3 : 2; resBio.remove(); showMessage("Svačinka cestou (+Bio)!", "#2ecc71");}
-                                    if (resMat) { gameState.material += (type === 'worker') ? 4 : 2; resMat.remove(); showMessage("Sebrána větvička (+Mat)!", "#3498db");}
-                                    if (resCake) { gameState.bio += (type === 'worker') ? 6 : 4; resCake.remove(); showMessage("Dort! Záchrana z nebes!", "#9b59b6");}
-                                    
+                                    if (resBio) { gameState.bio += (type === 'worker') ? 3 : 2; resBio.remove(); }
+                                    if (resMat) { gameState.material += (type === 'worker') ? 4 : 2; resMat.remove(); }
+                                    if (resCake) { gameState.bio += (type === 'worker') ? 6 : 4; resCake.remove(); }
                                     this.innerHTML += selectedHex.innerHTML; selectedHex.innerHTML = '';
                                 }
                                 selectedHex.classList.remove('selected'); selectedHex = null; gameState.feromons -= actionCost; updateUI(); checkWinCondition();
@@ -681,100 +527,140 @@
             }
         }
 
-        function moveEnemies() {
-            document.querySelectorAll('.hex').forEach(hex => {
-                const enemyUnit = hex.querySelector('.enemy');
-                if (enemyUnit) {
-                    const isDefender = enemyUnit.classList.contains('enemy-defender');
-                    const r = parseInt(hex.dataset.row), c = parseInt(hex.dataset.col);
-                    
-                    let possibleAttacks = [];
-                    for(let dr=-1; dr<=1; dr++) {
-                        for(let dc=-1; dc<=1; dc++) {
-                            const nr=r+dr, nc=c+dc;
-                            if(nr>=0 && nr<rows && nc>=0 && nc<columns && isAdjacent(r,c,nr,nc)) {
-                                const target = document.getElementById(`hex-${nr}-${nc}`);
-                                if(target && (target.querySelector('.ant, .worker, .elite') || target.classList.contains('nest') || target.classList.contains('tunnel') || target.querySelector('.wall'))) {
-                                    possibleAttacks.push(target);
-                                }
-                            }
+        // --- MOZEK UMĚLÉ INTELIGENCE (AI) ---
+        function runAITurn() {
+            aiState.feromons += 5;
+
+            // 1. FÁZE: Vylepšování základny AI
+            if (aiState.hatcheryLvl === 1 && aiState.material >= 20) {
+                aiState.material -= 20; aiState.hatcheryLvl = 2;
+                showMessage("🔴 AI vylepšilo hnízdo na úroveň 2!", "#e74c3c");
+            } else if (aiState.hatcheryLvl === 2 && aiState.material >= 30 && aiState.bio >= 5) {
+                aiState.material -= 30; aiState.bio -= 5; aiState.hatcheryLvl = 3;
+                showMessage("🔴 AI vylepšilo hnízdo na úroveň 3!", "#e74c3c");
+            }
+
+            // 2. FÁZE: Líhnutí
+            let aiNest = document.getElementById(`hex-${gameState.enemyNestLocation.r}-${gameState.enemyNestLocation.c}`);
+            if (aiNest && !aiNest.querySelector('.enemy-unit, .ant, .worker, .elite')) {
+                let workers = document.querySelectorAll('.enemy-unit.worker').length;
+                let cost = 1; let type = 'basic'; let icon = '🐜';
+                
+                if (workers < 2 || (workers < 3 && aiState.hatcheryLvl >= 2)) { type = 'worker'; icon = '👷'; } 
+                else if (aiState.hatcheryLvl >= 2 && aiState.bio >= 4 && Math.random() > 0.4) { type = 'elite'; icon = '🦂'; cost = 3; }
+
+                if (aiState.bio >= cost && aiState.feromons >= 1) {
+                    aiState.bio -= cost; aiState.feromons -= 1;
+                    aiNest.innerHTML += `<div class="enemy-unit ${type}">${icon}</div>`;
+                }
+            }
+
+            // 3. FÁZE: Akce jednotek
+            let aiUnits = Array.from(document.querySelectorAll('.enemy-unit'));
+            
+            for (let unit of aiUnits) {
+                if (aiState.feromons < 1) break;
+                
+                let hex = unit.parentElement;
+                let r = parseInt(hex.dataset.row), c = parseInt(hex.dataset.col);
+                let isWorker = unit.classList.contains('worker');
+                let isCarrying = unit.classList.contains('carrying-bio') || unit.classList.contains('carrying-mat');
+
+                let target = null;
+
+                if (isWorker) {
+                    if (isCarrying) {
+                        // Nese náklad -> jde domů
+                        if (getDistance(r, c, gameState.enemyNestLocation.r, gameState.enemyNestLocation.c) <= 1.5) {
+                            if (unit.classList.contains('carrying-bio')) aiState.bio += 5; else aiState.material += 5;
+                            unit.className = 'enemy-unit worker'; unit.innerText = '👷'; aiState.feromons -= 1; continue;
+                        }
+                        target = {r: gameState.enemyNestLocation.r, c: gameState.enemyNestLocation.c};
+                    } else {
+                        // Prázdný -> hledá uzel nebo volnou surovinu
+                        let bestDist = 999;
+                        document.querySelectorAll('.node-bio, .node-mat, .res-bio, .res-mat, .res-cake').forEach(res => {
+                            let pr = parseInt(res.dataset.row), pc = parseInt(res.dataset.col);
+                            let d = getDistance(r, c, pr, pc);
+                            if (d < bestDist) { bestDist = d; target = {r: pr, c: pc, hex: res}; }
+                        });
+                        
+                        // Zvednutí suroviny, pokud je u ní
+                        if (target && bestDist <= 1.5) {
+                            if (target.hex.classList.contains('node-bio')) { unit.className = 'enemy-unit worker worker-loaded carrying-bio'; unit.innerText = '👷🥩'; aiState.feromons-=1; continue; }
+                            if (target.hex.classList.contains('node-mat')) { unit.className = 'enemy-unit worker worker-loaded carrying-mat'; unit.innerText = '👷🪵'; aiState.feromons-=1; continue; }
+                            // Sběr drobností
+                            let resBio = target.hex.querySelector('.res-bio'), resMat = target.hex.querySelector('.res-mat'), resCake = target.hex.querySelector('.res-cake');
+                            if (resBio) { aiState.bio += 2; resBio.remove(); aiState.feromons-=1; unit.remove(); target.hex.appendChild(unit); continue; }
+                            if (resMat) { aiState.material += 2; resMat.remove(); aiState.feromons-=1; unit.remove(); target.hex.appendChild(unit); continue; }
+                        }
+
+                        // Občasné stavění Valu, pokud má L3 a moc materiálu
+                        if (aiState.hatcheryLvl === 3 && aiState.material > 15 && Math.random() > 0.7 && !hex.querySelector('.wall') && !hex.classList.contains('enemy-nest')) {
+                            aiState.material -= 8; aiState.feromons -= 1;
+                            hex.innerHTML += '<div class="wall" data-hp="4">🧱<span style="font-size:12px; color:white;">4HP</span></div>';
+                            continue;
                         }
                     }
-
-                    if (possibleAttacks.length > 0) {
-                        let targetHex = possibleAttacks.find(h => h.classList.contains('nest')) || possibleAttacks.find(h => h.classList.contains('tunnel')) || possibleAttacks.find(h => h.querySelector('.wall')) || possibleAttacks[0];
-                        let aiRoll = Math.floor(Math.random() * 6) + 1;
-                        if (targetHex.classList.contains('grass')) aiRoll -= 1;
-
-                        if (aiRoll >= 4) { 
-                            if(targetHex.classList.contains('nest')) { 
-                                gameState.playerHP -= 1; gameState.bio = Math.max(0, gameState.bio - 1); 
-                                showMessage("⚠️ Nájezd na Hnízdo! Ztráta 1 HP!", "#e74c3c"); hex.querySelector('.enemy').remove(); 
-                            } else if (targetHex.classList.contains('tunnel') && !targetHex.querySelector('.ant, .worker, .elite')) {
-                                targetHex.classList.remove('tunnel'); 
-                                gameState.tunnels = gameState.tunnels.filter(t => t.r !== parseInt(targetHex.dataset.row) || t.c !== parseInt(targetHex.dataset.col));
-                                showMessage("⚠️ Nepřítel zničil tvůj Tunel!", "#e74c3c"); hex.querySelector('.enemy').remove();
-                            } else if (targetHex.querySelector('.wall')) {
-                                let wall = targetHex.querySelector('.wall'); let hp = parseInt(wall.dataset.hp) - 1;
-                                if (hp <= 0) { wall.remove(); showMessage("⚠️ Nepřítel prorazil tvůj Val!", "#e74c3c"); }
-                                else { wall.dataset.hp = hp; wall.innerHTML = `🧱<span style="font-size:12px; color:white;">${hp}HP</span>`; }
-                                hex.querySelector('.enemy').remove(); 
-                            } else { 
-                                targetHex.querySelector('.ant, .worker, .elite').remove();
-                                targetHex.appendChild(enemyUnit); 
-                            }
-                        } else { enemyUnit.remove(); } 
-                        return; 
-                    }
-
-                    if (isDefender) {
-                        const distToHome = getDistance(r, c, gameState.enemyNestLocation.r, gameState.enemyNestLocation.c);
-                        if (distToHome <= 1) return; 
-                    }
-
-                    let closestTarget = {r: gameState.nestLocation.r, c: gameState.nestLocation.c};
-                    let minTargetDist = getDistance(r, c, closestTarget.r, closestTarget.c);
-                    gameState.tunnels.forEach(tun => {
-                        let d = getDistance(r, c, tun.r, tun.c);
-                        if(d < minTargetDist) { minTargetDist = d; closestTarget = tun; }
+                } else {
+                    // Bojovník -> hledá hráče, tunely, hnízdo
+                    let bestDist = 999;
+                    document.querySelectorAll('.ant, .worker, .elite, .nest, .tunnel').forEach(p => {
+                        let pr = parseInt(p.parentElement.dataset.row) || parseInt(p.dataset.row);
+                        let pc = parseInt(p.parentElement.dataset.col) || parseInt(p.dataset.col);
+                        let d = getDistance(r, c, pr, pc);
+                        if (d < bestDist) { bestDist = d; target = {r: pr, c: pc, el: p}; }
                     });
 
-                    const targetR = isDefender ? gameState.enemyNestLocation.r : closestTarget.r;
-                    const targetC = isDefender ? gameState.enemyNestLocation.c : closestTarget.c;
-                    
-                    let best = null, minDist = 999;
+                    // Útok
+                    if (target && bestDist <= 1.5) {
+                        let roll = Math.floor(Math.random() * 6) + 1;
+                        if (unit.classList.contains('elite')) roll += 1;
+                        
+                        let th = target.el.classList.contains('hex') ? target.el : target.el.parentElement;
+                        if (th.classList.contains('grass')) roll -= 1;
+
+                        if (roll >= 4) {
+                            if (th.classList.contains('nest')) { gameState.playerHP -= 1; gameState.bio = Math.max(0, gameState.bio - 1); showMessage("⚠️ AI napadlo hnízdo!", "#e74c3c"); unit.remove(); }
+                            else if (th.classList.contains('tunnel') && !th.querySelector('.ant, .worker, .elite')) {
+                                th.classList.remove('tunnel'); gameState.tunnels = gameState.tunnels.filter(t => t.r !== pr || t.c !== pc); showMessage("⚠️ AI zničilo tunel!", "#e74c3c"); unit.remove();
+                            }
+                            else { target.el.remove(); unit.remove(); th.appendChild(unit); }
+                        } else { unit.remove(); } // AI umře
+                        aiState.feromons -= 1; continue;
+                    }
+                }
+
+                // Společný pohyb (Jeden krok k cíli)
+                if (target) {
+                    let bestHex = null, minDist = 999;
                     for(let dr=-1; dr<=1; dr++) {
                         for(let dc=-1; dc<=1; dc++) {
                             const nr=r+dr, nc=c+dc;
-                            if(nr>=0 && nr<rows && nc>=0 && nc<columns && isAdjacent(r,c,nr,nc)) {
+                            if(isAdjacent(r,c,nr,nc)) {
                                 const t = document.getElementById(`hex-${nr}-${nc}`);
-                                if(t && !t.querySelector('.enemy') && !t.classList.contains('enemy-nest') && !t.classList.contains('rock') && !t.classList.contains('node-bio') && !t.classList.contains('node-mat') && (!t.classList.contains('water') || t.classList.contains('bridge')) && !t.querySelector('.wall')) {
-                                    let d = getDistance(nr, nc, targetR, targetC);
-                                    if(d < minDist) { minDist = d; best = t; }
+                                if(t && !t.querySelector('.enemy-unit') && !t.classList.contains('enemy-nest') && !t.classList.contains('rock') && (!t.classList.contains('water') || t.classList.contains('bridge')) && !t.querySelector('.wall')) {
+                                    let d = getDistance(nr, nc, target.r, target.c);
+                                    if(d < minDist) { minDist = d; bestHex = t; }
                                 }
                             }
                         }
                     }
-                    if (best) {
-                        // AI ZNIČÍ DÁLNICI, POKUD NA NI ŠLÁPNE
-                        if (best.classList.contains('highway')) {
-                            best.classList.remove('highway');
-                            showMessage("⚠️ Nepřítel ti překousal Feromonovou dálnici!", "#e74c3c");
-                        }
-
-                        let trap = best.querySelector('.trap');
-                        if (trap) { trap.remove(); enemyUnit.remove(); showMessage("🕸️ Nepřítel se chytil do pasti!", "#2ecc71"); } 
-                        else { best.appendChild(enemyUnit); }
+                    if (bestHex) {
+                        if (bestHex.classList.contains('highway')) { bestHex.classList.remove('highway'); showMessage("⚠️ AI zničilo dálnici!", "#e74c3c"); }
+                        let trap = bestHex.querySelector('.trap');
+                        if (trap) { trap.remove(); unit.remove(); showMessage("🕸️ Nepřítel v pasti!", "#2ecc71"); } 
+                        else { unit.remove(); bestHex.appendChild(unit); }
+                        aiState.feromons -= 1;
                     }
                 }
-            });
-            checkWinCondition();
+            }
+            updateUI(); checkWinCondition();
         }
 
         function nextTurn() {
-            moveEnemies(); triggerRandomEvent(); gameState.feromons += 5;
+            runAITurn(); triggerRandomEvent(); gameState.feromons += 5;
             if (Math.random() < 0.4) spawnResources(1);
-            if (Math.random() < 0.6) spawnEnemy();
             updateUI();
         }
     </script>
